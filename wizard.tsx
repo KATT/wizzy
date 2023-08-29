@@ -89,7 +89,7 @@ function createWizard<
     [TStep in keyof TSchemaRecord]?: Partial<$Data[TStep]>;
   };
   type $DataStep = keyof $Data;
-  type $AnyStep = TStepTuple[number] | $EndStep | $DataStep;
+  type $Step = TStepTuple[number] | $EndStep | $DataStep;
   type $EndStepWithData = $EndStep & $DataStep;
 
   //   <Generics:Functions>
@@ -103,7 +103,7 @@ function createWizard<
     $Data[TStep]
   > &
     Omit<NonNullable<$PartialData>, TStep>;
-  type $GoToStepFunction = <TStep extends $AnyStep>(
+  type $GoToStepFunction = <TStep extends $Step>(
     step: TStep,
     ...args: TStep extends $EndStepWithData
       ? [data: DataRequiredForStep<TStep>]
@@ -113,26 +113,26 @@ function createWizard<
   // </Generics>
 
   // <Variables>
-  const allSteps: $AnyStep[] = [...config.steps, ...config.end];
+  const allSteps: $Step[] = [...config.steps, ...config.end];
 
   const stepQueryKey = `${config.id}_step`;
   const dataQueryKey = `${config.id}_data`;
 
   const $types = null as unknown as {
     EndStep: $EndStep;
-    AnyStep: $AnyStep;
+    AnyStep: $Step;
     Data: $Data;
     DataStep: $DataStep;
   };
   // </Variables>
 
-  function isEndStep(step: $AnyStep): step is $EndStep {
+  function isEndStep(step: $Step): step is $EndStep {
     return config.end.includes(step as any);
   }
 
   const [Provider, useContext] = createCtx<{
-    start: $AnyStep;
-    currentStep: $AnyStep;
+    start: $Step;
+    currentStep: $Step;
     data: $PartialData;
     setStepData: $SetStepDataFunction;
     setData: React.Dispatch<React.SetStateAction<$PartialData>>;
@@ -140,7 +140,7 @@ function createWizard<
 
   function InnerWizard(props: {
     id: string;
-    start: $AnyStep;
+    start: $Step;
     data?: $PartialData;
   }) {
     // step is controlled by the url
@@ -155,7 +155,7 @@ function createWizard<
      *
      **/
     const queryStep = stringOrNull(router.query[config.id]);
-    const requestedStep: $AnyStep | null =
+    const requestedStep: $Step | null =
       queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
     /**
@@ -165,9 +165,9 @@ function createWizard<
       () => jsonParseOrNull(router.query[dataQueryKey]),
       [router.query[dataQueryKey]],
     );
-    const prevStep = React.useRef<$AnyStep | null>(null);
+    const prevStep = React.useRef<$Step | null>(null);
 
-    let currentStep: $AnyStep = React.useMemo(() => {
+    let currentStep: $Step = React.useMemo(() => {
       if (queryStepData) {
         // queryStepData needs to be consumed in the context before usage
         return prevStep.current ?? props.start;
@@ -269,7 +269,7 @@ function createWizard<
     );
   }
 
-  function Wizard<TStart extends $AnyStep>(
+  function Wizard<TStart extends $Step>(
     props: {
       id: string;
       start: TStart;
@@ -343,7 +343,7 @@ function createWizard<
     const context = useContext();
     const router = useRouter();
 
-    const push = React.useCallback((step: $AnyStep, data: $PartialData) => {
+    const push = React.useCallback((step: $Step, data: $PartialData) => {
       if (data) {
         context.setData((obj) => {
           const newData = { ...obj };
