@@ -90,6 +90,7 @@ function createWizard<
   type $DataStep = keyof $Data;
   type $EndStepWithData = $EndStep & $DataStep;
 
+  // <  Generics:Functions>
   type $SetStepDataFunction = <TStep extends $DataStep>(
     step: TStep,
     data: $Step,
@@ -106,6 +107,7 @@ function createWizard<
       ? [data: DataRequiredForStep<TStep>]
       : [data?: $PartialData]
   ) => void;
+  //   </Generics:Functions>
   // </Generics>
 
   // <Variables>
@@ -275,11 +277,19 @@ function createWizard<
     props: {
       id: string;
       start: TStart;
-    } & TStart extends $EndStepWithData
+    } & (TStart extends $EndStepWithData
       ? { data: DataRequiredForStep<TStart> }
-      : {},
+      : {
+          data?: $PartialData;
+        }),
   ) {
-    return <InnerWizard {...props} key={props.id} />;
+    return (
+      <InnerWizard
+        {...props}
+        data={props.data as $PartialData}
+        key={props.id}
+      />
+    );
   }
 
   Wizard.displayName = `Wizard(${config.id})`;
@@ -287,9 +297,6 @@ function createWizard<
 
   Wizard.useForm = function useForm<TStep extends keyof TSchemaRecord>(
     step: TStep,
-    opts: {
-      handleSubmit?: (values: $Data[TStep]) => Promise<void>;
-    },
   ) {
     const schemas = config.schema as Required<TSchemaRecord>;
 
@@ -313,13 +320,17 @@ function createWizard<
         setStepData();
       };
     });
+    const handleSubmit = React.useCallback(
+      async (values: $Data[TStep]) => {
+        await form.handleSubmit(values);
+        setStepData();
+      },
+      [form, setStepData],
+    );
 
     return {
       form,
-      handleSubmit(values) {
-        props.handleSubmit?.(values);
-        setStepData();
-      },
+      handleSubmit: opts?.handleSubmit ?? handleSubmit,
     };
   };
 
