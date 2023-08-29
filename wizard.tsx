@@ -93,7 +93,7 @@ function createWizard<
   // <  Generics:Functions>
   type $SetStepDataFunction = <TStep extends $DataStep>(
     step: TStep,
-    data: $Step,
+    data: $Data[TStep],
   ) => void;
 
   type DataRequiredForStep<TStep extends $DataStep> = Record<
@@ -133,6 +133,7 @@ function createWizard<
     start: $AnyStep;
     currentStep: $AnyStep;
     data: PartialDeep<$Data>;
+    setStepData: $SetStepDataFunction;
   }>();
 
   function InnerWizard(props: {
@@ -295,8 +296,11 @@ function createWizard<
   Wizard.displayName = `Wizard(${config.id})`;
   Wizard.$types = $types;
 
-  Wizard.useForm = function useForm<TStep extends keyof TSchemaRecord>(
+  Wizard.useForm = function useForm<TStep extends $DataStep>(
     step: TStep,
+    opts?: {
+      defaultValues?: PartialDeep<$Data[TStep]>;
+    },
   ) {
     const schemas = config.schema as Required<TSchemaRecord>;
 
@@ -305,7 +309,10 @@ function createWizard<
     const schema = schemas[props.step];
     const form = useZodForm({
       schema,
-      defaultValues: context.data?.[step],
+      defaultValues: {
+        ...opts?.defaultValues,
+        ...context.data?.[step],
+      },
     });
 
     const setStepData = React.useCallback(() => {
@@ -330,12 +337,13 @@ function createWizard<
 
     return {
       form,
-      handleSubmit: opts?.handleSubmit ?? handleSubmit,
+      handleSubmit,
     };
   };
 
   Wizard.useContext = function useWizard(): {
     push: $GoToStepFunction;
+    setStepData: $SetStepDataFunction;
   } {
     throw "unimplemented";
   };
@@ -385,8 +393,8 @@ const Wiz = createWizard({
 });
 
 Wiz.useForm("one", {
-  async handleSubmit(values) {
-    //             ^?
+  defaultValues: {
+    name: "test",
   },
 });
 
