@@ -104,7 +104,7 @@ function createWizard<
     step: TStep,
     ...args: TStep extends $EndStepWithData
       ? [data: DataRequiredForStep<TStep>]
-      : [data?: $PartialData] 
+      : [data?: $PartialData]
   ) => void;
   // </Generics>
 

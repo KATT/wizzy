@@ -6,9 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "prettier": {
-    
-  },
+  "prettier": {},
   "keywords": [],
   "author": "",
   "license": "ISC",
