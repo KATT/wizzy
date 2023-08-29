@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  "@hookform/resolvers":
+    specifier: ^3.3.1
+    version: 3.3.1(react-hook-form@7.45.4)
   "@types/react":
     specifier: ^18.2.21
     version: 18.2.21
@@ -23,14 +26,31 @@ dependencies:
   react-dom:
     specifier: ^18.2.0
     version: 18.2.0(react@18.2.0)
+  react-hook-form:
+    specifier: ^7.45.4
+    version: 7.45.4(react@18.2.0)
   type-fest:
     specifier: ^4.3.1
     version: 4.3.1
+  usehooks-ts:
+    specifier: ^2.9.1
+    version: 2.9.1(react-dom@18.2.0)(react@18.2.0)
   zod:
     specifier: ^3.22.2
     version: 3.22.2
 
 packages:
+  /@hookform/resolvers@3.3.1(react-hook-form@7.45.4):
+    resolution:
+      {
+        integrity: sha512-K7KCKRKjymxIB90nHDQ7b9nli474ru99ZbqxiqDAWYsYhOsU3/4qLxW91y+1n04ic13ajjZ66L3aXbNef8PELQ==,
+      }
+    peerDependencies:
+      react-hook-form: ^7.0.0
+    dependencies:
+      react-hook-form: 7.45.4(react@18.2.0)
+    dev: false
+
   /@next/env@13.4.19:
     resolution:
       {
@@ -344,6 +364,18 @@ packages:
       scheduler: 0.23.0
     dev: false
 
+  /react-hook-form@7.45.4(react@18.2.0):
+    resolution:
+      {
+        integrity: sha512-HGDV1JOOBPZj10LB3+OZgfDBTn+IeEsNOKiq/cxbQAIbKaiJUe/KV8DBUzsx0Gx/7IG/orWqRRm736JwOfUSWQ==,
+      }
+    engines: { node: ">=12.22.0" }
+    peerDependencies:
+      react: ^16.8.0 || ^17 || ^18
+    dependencies:
+      react: 18.2.0
+    dev: false
+
   /react@18.2.0:
     resolution:
       {
@@ -412,6 +444,20 @@ packages:
         integrity: sha512-pphNW/msgOUSkJbH58x8sqpq8uQj6b0ZKGxEsLKMUnGorRcDjrUaLS+39+/ub41JNTwrrMyJcUB8+YZs3mbwqw==,
       }
     engines: { node: ">=16" }
+    dev: false
+
+  /usehooks-ts@2.9.1(react-dom@18.2.0)(react@18.2.0):
+    resolution:
+      {
+        integrity: sha512-2FAuSIGHlY+apM9FVlj8/oNhd+1y+Uwv5QNkMQz1oSfdHk4PXo1qoCw9I5M7j0vpH8CSWFJwXbVPeYDjLCx9PA==,
+      }
+    engines: { node: ">=16.15.0", npm: ">=8" }
+    peerDependencies:
+      react: ^16.8.0  || ^17.0.0 || ^18.0.0
+      react-dom: ^16.8.0  || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
     dev: false
 
   /watchpack@2.4.0:

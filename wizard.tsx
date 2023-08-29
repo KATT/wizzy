@@ -1,7 +1,7 @@
-import React, { ComponentType, createContext } from "react";
 import { useRouter } from "next/router";
-import type { PartialDeep, SetRequired } from "type-fest";
+import React, { createContext } from "react";
 import z, { ZodType } from "zod";
+import { useZodForm } from "./useZodForm";
 
 export type DistributiveOmit<T, TKeys extends keyof T> = T extends unknown
   ? Omit<T, TKeys>
@@ -81,16 +81,19 @@ function createWizard<
   type $Step = TStepTuple[number];
   type $EndStep = TEndTuple[number];
   type $AnyStep = $Step | $EndStep;
+
   type $Data = {
     [TStep in keyof TSchemaRecord]: AssertZodType<
       TSchemaRecord[TStep]
     >["_input"];
   };
-  type $PartialData = PartialDeep<$Data>;
+  type $PartialData = {
+    [TStep in keyof TSchemaRecord]?: Partial<$Data[TStep]>;
+  };
   type $DataStep = keyof $Data;
   type $EndStepWithData = $EndStep & $DataStep;
 
-  // <  Generics:Functions>
+  //   <Generics:Functions>
   type $SetStepDataFunction = <TStep extends $DataStep>(
     step: TStep,
     data: $Data[TStep],
@@ -106,7 +109,7 @@ function createWizard<
     ...args: TStep extends $EndStepWithData
       ? [data: DataRequiredForStep<TStep>]
       : [data?: $PartialData]
-  ) => void;
+  ) => Promise<void>;
   //   </Generics:Functions>
   // </Generics>
 
@@ -132,7 +135,7 @@ function createWizard<
   const [Provider, useContext] = createCtx<{
     start: $AnyStep;
     currentStep: $AnyStep;
-    data: PartialDeep<$Data>;
+    data: $PartialData;
     setStepData: $SetStepDataFunction;
   }>();
 
@@ -274,7 +277,7 @@ function createWizard<
     );
   }
 
-  function Wizard<TStart extends $Step>(
+  function Wizard<TStart extends $AnyStep>(
     props: {
       id: string;
       start: TStart;
@@ -288,7 +291,7 @@ function createWizard<
       <InnerWizard
         {...props}
         data={props.data as $PartialData}
-        key={props.id}
+        key={config.id + props.id}
       />
     );
   }
@@ -299,19 +302,19 @@ function createWizard<
   Wizard.useForm = function useForm<TStep extends $DataStep>(
     step: TStep,
     opts?: {
-      defaultValues?: PartialDeep<$Data[TStep]>;
+      defaultValues?: $PartialData[TStep];
     },
   ) {
     const schemas = config.schema as Required<TSchemaRecord>;
 
     const context = useContext();
 
-    const schema = schemas[props.step];
+    const schema = config.schema[step];
     const form = useZodForm({
-      schema,
+      schema: schema!,
       defaultValues: {
         ...opts?.defaultValues,
-        ...context.data?.[step],
+        ...(context.data as any)?.[step],
       },
     });
 
@@ -345,6 +348,51 @@ function createWizard<
     push: $GoToStepFunction;
     setStepData: $SetStepDataFunction;
   } {
+    const context = useContext();
+    const router = useRouter();
+
+    const push = React.useCallback((step: $Step, data: $PartialData) => {
+      if (data) {
+        context.setData((obj) => {
+          const newData = { ...obj };
+          // like above but using .entries and for each
+          for (const [key, value] of Object.entries(data)) {
+            newData[key] = {
+              ...obj[key],
+              ...(value as Record<string, unknown>),
+            };
+          }
+
+          return newData;
+        });
+      }
+
+      if (isEndStep(step) && data) {
+        // validate data
+        const schema = config.schema[step];
+        if (!schema || !schema.safeParse(data).success) {
+          // This shouldn't happen
+          throw new Error("Invalid data passed to end step");
+        }
+        return router.push({
+          query: {
+            ...router.query,
+            [stepQueryKey]: step,
+            [dataQueryKey]: JSON.stringify(data),
+          },
+        });
+      }
+      return router.push({
+        query: {
+          ...router.query,
+          [stepQueryKey]: step,
+        },
+      });
+    }, []) as unknown as $GoToStepFunction;
+    return {
+      push,
+      setStepData: context.setStepData,
+    };
     throw "unimplemented";
   };
 
@@ -400,16 +448,27 @@ Wiz.useForm("one", {
 
 const context = Wiz.useContext();
 context.push("one");
+context.push("two");
 
 // @ts-expect-error no arg passed
 context.push("three", {});
 
 Wiz.$types.Data.three;
 
-const $Types = typeof Wiz.$types;
+type $Types = typeof Wiz.$types;
 
 type EndStepWithData = typeof Wiz.$types.DataStep & typeof Wiz.$types.EndStep;
 
 function MyComponent() {
-  return <Wiz />;
+  return (
+    <Wiz
+      id="123"
+      start="three"
+      data={{
+        three: {
+          id: "123",
+        },
+      }}
+    />
+  );
 }
