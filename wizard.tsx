@@ -1,6 +1,6 @@
 import { useRouter } from "next/router";
 import React, { createContext } from "react";
-import z, { ZodType } from "zod";
+import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
 
 export type DistributiveOmit<T, TKeys extends keyof T> = T extends unknown
@@ -428,6 +428,8 @@ const Wiz = createWizard({
     three: z.object({
       id: z.string(),
     }),
+    // @ts-expect-error TODO: not a valid step
+    moo: z.object({}),
   },
   linear: true,
 });
