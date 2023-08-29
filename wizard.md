@@ -13,20 +13,19 @@
 
 ### Session storage data structure
 
-
-- Stored in `wizard_${wizard.id}_${wizard.uniqueKey}` 
-
+- Stored in `wizard_${wizard.id}_${wizard.uniqueKey}`
 
 ```ts
 interface WizardState {
-    status: "pending" | "complete";
-    steps: Record<StepId, {
-        seen: true;
-        data: unknown;
-    }>
+  status: "pending" | "complete";
+  steps: Record<
+    StepId,
+    {
+      seen: true;
+      data: unknown;
+    }
+  >;
 }
-
-
 ```
 
 ### Payment request wizard
@@ -35,8 +34,9 @@ interface WizardState {
 - Login or unauth
 - Select organization (not always there)
 - Select payment method
-    - ACH
-    - Bank
+
+  - ACH
+  - Bank
 
 - Success
 - Error
@@ -63,7 +63,7 @@ const Wizard = createWizard({
             message: z.string(),
         }),
         'authed.method': z.object({
-            
+
         }),
     },
     variant: 'custom',
@@ -75,7 +75,7 @@ const Wizard = createWizard({
 Wizard.step('start', (props) => {
     const viewer = useAppContextViewer();
 
-    
+
     const href = ()
 
 
@@ -96,11 +96,11 @@ Wizard.step('authed.method', (props) => {
     const organization = props.completed('selectOrganization');
     props.schema;
     //     ^? typeof Wizard.$types.schema['authed.method'];
-    
+
     props.data;
     type Data = DeepPartial<typeof z.input<typeof schema>>;
 
-    
+
 
     return <>....</>;
 });
@@ -117,7 +117,7 @@ export default function PaymentWizardPage() {
             }
         }
 
-        return 'start'; 
+        return 'start';
     }, [payment])
     return (
         <Wizard id={paymentRequest.id} />
@@ -125,16 +125,14 @@ export default function PaymentWizardPage() {
 }
 ```
 
-
-
 ### Invoice wizard
 
 ```ts
 const InvoiceWizard = createWizard({
-  id: 'invoice',
-  start: 'details',
-  end: 'confirmation',
-  steps: ['details', 'customize', 'confirmation'],
+  id: "invoice",
+  start: "details",
+  end: "confirmation",
+  steps: ["details", "customize", "confirmation"],
   schema: {
     details: z.object({
       id: z.string().trim().optional(),
@@ -149,70 +147,63 @@ const InvoiceWizard = createWizard({
     }),
     customize: customizeSchema,
   },
-  dependencies: 'sequential',
+  dependencies: "sequential",
 });
 ```
 
 ### Onboarding wizard
 
 - Can save snapshot async and continued at any point
-- 
+-
 
 ```tsx
 const Wizard = createWizard({
-  id: 'invoice',
-  start: 'details',
-  end: 'confirmation',
-  steps: ['start', 'profile', 'confirmation'],
-  end: ['success'],
+  id: "invoice",
+  start: "details",
+  end: "confirmation",
+  steps: ["start", "profile", "confirmation"],
+  end: ["success"],
   schema: {
     details: z.object({
-        businessName: requiredString,
+      businessName: requiredString,
     }),
     owners: z.object({
-        list: z.array(ownerSchema),
+      list: z.array(ownerSchema),
     }),
     success: z.object({}),
   },
-  variant: 'sequential',
+  variant: "sequential",
 });
 
+Wizard.step("details", (props) => {});
 
-Wizard.step('details', (props) => {
-    
-})
-
-Wizard.step('owners', () => {
-    
-})
-
+Wizard.step("owners", () => {});
 
 export default function Onboarding() {
-    const saveSnapshot = trpc.onboarding.saveSnapshot.useMutation();
-    const [snapshot] = trpc.onboarding.snapshot.useSuspenseQuery({
-        organizationId,
-    });
+  const saveSnapshot = trpc.onboarding.saveSnapshot.useMutation();
+  const [snapshot] = trpc.onboarding.snapshot.useSuspenseQuery({
+    organizationId,
+  });
 
-
-    return <Wizard
-        id={organizationId}
-        start="start"
-        initialState={snapshot.state}
-        remoteStorage={{
-            checksum: saveSnapshot.checksum,
-            async save(step, values) {
-                const checksum = await saveSnapshot.mutateAsync({ 
-                    step,
-                    values,
-                });
-                return checksum;
-            }
-        }}
-        />
-
+  return (
+    <Wizard
+      id={organizationId}
+      start="start"
+      initialState={snapshot.state}
+      remoteStorage={{
+        checksum: saveSnapshot.checksum,
+        async save(step, values) {
+          const checksum = await saveSnapshot.mutateAsync({
+            step,
+            values,
+          });
+          return checksum;
+        },
+      }}
+    />
+  );
 }
 ```
-
 
 ### Wizard internals
 
@@ -318,7 +309,7 @@ function jsonParseOrNull(obj: unknown): Record<string, unknown> | null {
     return null;
 }
 function createWizard<
-    TSteps extends [string, ...string], 
+    TSteps extends [string, ...string],
     TEndStep extends TSteps[],
     TSchema extends Partial<Record<TSteps[number], z.ZodType>>,
     TSequential extends boolean
@@ -348,10 +339,10 @@ function createWizard<
     function Wizard<TStart extends TStep>(props: {
         id: string;
         start: TStep;
-    } & TStep extends TEndStep 
+    } & TStep extends TEndStep
         ?
-        undefined extends Data[TStep] 
-        ? never 
+        undefined extends Data[TStep]
+        ? never
         : {
             data: Data[TStep]
         }
@@ -363,7 +354,7 @@ function createWizard<
 
         /**
          * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
-         * 
+         *
          **/
         const queryStep = stringOrNull(router.query[id]);
         const requestedStep: Step | null = queryStep && _def.steps.includes(queryStep) ? queryStep as Step : null;
@@ -371,7 +362,7 @@ function createWizard<
 
         const prevStep = useRef<Step | null>(null);
 
-        
+
         let currentStep: Step = useMemo(() => {
             // check if requestedStep is a valid step
             if (!requestedStep || requestedStep === props.start) {
@@ -420,18 +411,18 @@ function createWizard<
                     query: omit(router.query, stepQueryKey),
                 });
             }
-            
-            
+
+
         }, [router.query]);
 
 
-        const transitionType = 
-            prevStep && _def.steps.indexOf(prevStep) > _def.steps.indexOf(currentStep) 
-                ? 'backward' 
+        const transitionType =
+            prevStep && _def.steps.indexOf(prevStep) > _def.steps.indexOf(currentStep)
+                ? 'backward'
                 : 'forward';
 
         return (
-            <Provider 
+            <Provider
                 value={{
                     // ...
                 }}
@@ -453,7 +444,7 @@ function createWizard<
 
     Wizard.useForm = function useForm<TStep extends Step>(props: {
         step: TStep;
-        handleSubmit?: (values: typeof _def.schema[step]._output) => 
+        handleSubmit?: (values: typeof _def.schema[step]._output) =>
     }) {
         const schema = _def.schema[step];
         const form = useZodForm({
@@ -477,14 +468,14 @@ function createWizard<
         return {
             form,
             handleSubmit() {
-                
+
                 setStepData();
             }
         }
 
 
     }
-    
+
 
     // Would be nicer, but reqs refactoring all forms:
     // Wizard.step = function createStep<TStep extends Step>(step: TStep, Component: Component<{
@@ -504,7 +495,7 @@ function createWizard<
     //         const context = useContext();
 
 
-            
+
     //         return (
     //             <>
     //                 <Component />
@@ -519,24 +510,20 @@ function createWizard<
 
 ```
 
-
 ## Builder
 
 ```tsx
-
 const wizard = createWizard({
-  steps: ['start', 'login', 'selectOrganization'],
-})
-const startStep = wizard.step('start');
+  steps: ["start", "login", "selectOrganization"],
+});
+const startStep = wizard.step("start");
 
-const selectOrganizationStep = startStep.step('selectOrganization');
-const loginStep = startStep.step('login')
-
+const selectOrganizationStep = startStep.step("selectOrganization");
+const loginStep = startStep.step("login");
 ```
 
-
-
 ## Playground
+
 ```tsx
 
 import React, {ComponentType, createContext} from 'react';
@@ -622,16 +609,16 @@ function createWizard<
     type $Step = TStepTuple[number];
     type $EndStep = TEndTuple[number];
     type $AnyStep = $Step | $EndStep;
-    type $Data = { 
+    type $Data = {
         [TStep in keyof TSchemaRecord]: AssertZodType<TSchemaRecord[TStep]>['_input'];
     };
     type $DataStep = keyof $Data
-    
+
     type $SetStepDataFunction = <TStep extends $DataStep>(step: TStep, data: $Step) => void;
     type $GoToStepFunction = <TStep extends $AnyStep>(...args: TStep extends)
     // </Generics>
 
-    
+
     // <Variables>
     const stepsAndEndSteps = [...config.steps, ...config.end]
 
@@ -651,7 +638,7 @@ function createWizard<
     function isEndStep(step: $AnyStep): step is $EndStep {
         return config.end.includes(step as any);
     }
-    
+
 
     const [Provider, useContext] = createCtx<{
         start: $AnyStep;
@@ -662,23 +649,23 @@ function createWizard<
     function Wizard<TStart extends $Step>(props: {
         id: string;
         start: TStart;
-    } & (TStart extends TEndTuple[number] 
+    } & (TStart extends TEndTuple[number]
         ?
-        undefined extends $Data[TStart] 
-        ? never 
+        undefined extends $Data[TStart]
+        ? never
         : {
             data: $Data[TStart]
         }: never)) {
         // step is controlled by the url
         const router = useRouter()
-        
+
 
         const [wizardDataInner, setWizardData] = useSessionStorage(config.id + '_' + props.id);
 
 
         /**
          * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
-         * 
+         *
          **/
         const queryStep = stringOrNull(router.query[config.id]);
         const requestedStep: $Step | null = queryStep && stepsAndEndSteps.includes(queryStep) ? queryStep as $Step : null;
@@ -687,8 +674,8 @@ function createWizard<
         /**
          * Data passed through URL - always contextual to the step we're navigating too (we cannot deep link into a flow)
          */
-        const queryStepData = React.useMemo(() => 
-            jsonParseOrNull(router.query[dataQueryKey]), 
+        const queryStepData = React.useMemo(() =>
+            jsonParseOrNull(router.query[dataQueryKey]),
             [router.query[dataQueryKey]]
         );
         const stepData = React.useMemo(() => jsonParseOrNull(router.query[dataQueryKey]), [router.query[dataQueryKey]]);
@@ -758,28 +745,28 @@ function createWizard<
                             ...queryStepData[key] as Record<string, unknown>,
                         }
                     }
-                    
+
                     return newObj;
                 })
             }
-            
+
             void router.replace({
                 query: omit(router.query, stepQueryKey, dataQueryKey),
             });
-            
-            
+
+
         }, [router.query]);
 
 
-        const transitionType = 
-            prevStep.current && config.steps.indexOf(prevStep.current) > config.steps.indexOf(currentStep) 
-                ? 'backward' 
+        const transitionType =
+            prevStep.current && config.steps.indexOf(prevStep.current) > config.steps.indexOf(currentStep)
+                ? 'backward'
                 : 'forward';
 
-        
+
         prevStep.current = currentStep;
         return (
-            <Provider 
+            <Provider
                 value={{
                     // ...
                 } as any}
@@ -838,11 +825,11 @@ function createWizard<
     }
 
     Wizard.useContext = function useWizard(): ({
-        
+
     }) {
         throw 'unimplemented'
     }
-    
+
 
     // Would be nicer, but reqs refactoring all forms:
     // Wizard.step = function createStep<TStep extends Step>(step: TStep, Component: Component<{
@@ -862,7 +849,7 @@ function createWizard<
     //         const context = useContext();
 
 
-            
+
     //         return (
     //             <>
     //                 <Component />
