@@ -78,7 +78,6 @@ function createWizard<
   // <Generics>
   type AssertZodType<T> = T extends ZodType ? T : never;
 
-  type $Step = TStepTuple[number];
   type $EndStep = TEndTuple[number];
 
   type $Data = {
@@ -90,7 +89,7 @@ function createWizard<
     [TStep in keyof TSchemaRecord]?: Partial<$Data[TStep]>;
   };
   type $DataStep = keyof $Data;
-  type $AnyStep = $Step | $EndStep | $DataStep;
+  type $AnyStep = TStepTuple[number] | $EndStep | $DataStep;
   type $EndStepWithData = $EndStep & $DataStep;
 
   //   <Generics:Functions>
@@ -120,7 +119,6 @@ function createWizard<
   const dataQueryKey = `${config.id}_data`;
 
   const $types = null as unknown as {
-    Step: $Step;
     EndStep: $EndStep;
     AnyStep: $AnyStep;
     Data: $Data;
@@ -157,8 +155,8 @@ function createWizard<
      *
      **/
     const queryStep = stringOrNull(router.query[config.id]);
-    const requestedStep: $Step | null =
-      queryStep && allSteps.includes(queryStep) ? (queryStep as $Step) : null;
+    const requestedStep: $AnyStep | null =
+      queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
     /**
      * Data passed through URL - always contextual to the step we're navigating too (we cannot deep link into a flow)
@@ -345,7 +343,7 @@ function createWizard<
     const context = useContext();
     const router = useRouter();
 
-    const push = React.useCallback((step: $Step, data: $PartialData) => {
+    const push = React.useCallback((step: $AnyStep, data: $PartialData) => {
       if (data) {
         context.setData((obj) => {
           const newData = { ...obj };
