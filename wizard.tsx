@@ -80,7 +80,6 @@ function createWizard<
 
   type $Step = TStepTuple[number];
   type $EndStep = TEndTuple[number];
-  type $AnyStep = $Step | $EndStep;
 
   type $Data = {
     [TStep in keyof TSchemaRecord]: AssertZodType<
@@ -91,6 +90,7 @@ function createWizard<
     [TStep in keyof TSchemaRecord]?: Partial<$Data[TStep]>;
   };
   type $DataStep = keyof $Data;
+  type $AnyStep = $Step | $EndStep | $DataStep;
   type $EndStepWithData = $EndStep & $DataStep;
 
   //   <Generics:Functions>
@@ -114,7 +114,7 @@ function createWizard<
   // </Generics>
 
   // <Variables>
-  const stepsAndEndSteps = [...config.steps, ...config.end];
+  const allSteps: $AnyStep[] = [...config.steps, ...config.end];
 
   const stepQueryKey = `${config.id}_step`;
   const dataQueryKey = `${config.id}_data`;
@@ -137,11 +137,12 @@ function createWizard<
     currentStep: $AnyStep;
     data: $PartialData;
     setStepData: $SetStepDataFunction;
+    setData: React.Dispatch<React.SetStateAction<$PartialData>>;
   }>();
 
   function InnerWizard(props: {
     id: string;
-    start: $Step;
+    start: $AnyStep;
     data?: $PartialData;
   }) {
     // step is controlled by the url
@@ -157,9 +158,7 @@ function createWizard<
      **/
     const queryStep = stringOrNull(router.query[config.id]);
     const requestedStep: $Step | null =
-      queryStep && stepsAndEndSteps.includes(queryStep)
-        ? (queryStep as $Step)
-        : null;
+      queryStep && allSteps.includes(queryStep) ? (queryStep as $Step) : null;
 
     /**
      * Data passed through URL - always contextual to the step we're navigating too (we cannot deep link into a flow)
@@ -168,14 +167,9 @@ function createWizard<
       () => jsonParseOrNull(router.query[dataQueryKey]),
       [router.query[dataQueryKey]],
     );
-    const stepData = React.useMemo(
-      () => jsonParseOrNull(router.query[dataQueryKey]),
-      [router.query[dataQueryKey]],
-    );
+    const prevStep = React.useRef<$AnyStep | null>(null);
 
-    const prevStep = React.useRef<$Step | null>(null);
-
-    let currentStep: $Step = React.useMemo(() => {
+    let currentStep: $AnyStep = React.useMemo(() => {
       if (queryStepData) {
         // queryStepData needs to be consumed in the context before usage
         return prevStep.current ?? props.start;
@@ -190,7 +184,7 @@ function createWizard<
       if (isEndStep) {
         // for end steps we validate the data
         const schema = config.schema[requestedStep];
-        if (schema && !schema.safeParse(stepData).success) {
+        if (schema && !schema.safeParse(queryStepData).success) {
           return props.start;
         }
         return requestedStep;
@@ -200,7 +194,7 @@ function createWizard<
         config.linear &&
         !config.steps.every((step, index) => {
           // check all previous steps' data requirements are fulfilled
-          if (index >= config.steps.indexOf(currentStep)) {
+          if (index >= allSteps.indexOf(currentStep)) {
             return true;
           }
 
@@ -250,7 +244,7 @@ function createWizard<
 
     const transitionType =
       prevStep.current &&
-      config.steps.indexOf(prevStep.current) > config.steps.indexOf(currentStep)
+      allSteps.indexOf(prevStep.current) > allSteps.indexOf(currentStep)
         ? "backward"
         : "forward";
 
@@ -322,7 +316,7 @@ function createWizard<
       context.setStepData(step, form.getValues());
     }, []);
     useOnMount(() => {
-      if (!isEndStep(props.step as $Step)) {
+      if (!isEndStep(step)) {
         return;
       }
       // set data on unmount
