@@ -112,3 +112,42 @@ const Onboarding = createWizard({
   linear: true,
   storage: "controlled",
 });
+
+function OnboardingStep1() {
+  return <></>;
+}
+
+function OnboardingStep2() {
+  return <></>;
+}
+
+function OnboardingStep3() {
+  return <></>;
+}
+
+function OnboardingWizard() {
+  return (
+    <Onboarding
+      id="123"
+      start="one"
+      steps={{
+        one: <OnboardingStep1 />,
+        two: <OnboardingStep2 />,
+        three: <OnboardingStep3 />,
+      }}
+      data={{}}
+      patchData={async () => {}}
+    />
+  );
+}
+
+export default function Page() {
+  return (
+    <>
+      <h1>Test wizard</h1>
+      <TestWizard />
+      <h1>Onboarding wizard</h1>
+      <OnboardingWizard />
+    </>
+  );
+}

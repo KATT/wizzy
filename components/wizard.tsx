@@ -62,7 +62,7 @@ export function createWizard<
   //   <Generics:Functions>
   type $PatchDataFunction = (
     newData: Partial<$StoredWizardState["data"]>,
-  ) => void;
+  ) => void | Promise<void>;
 
   type DataRequiredForStep<TStep extends $DataStep> = Record<
     TStep,
@@ -397,6 +397,7 @@ export function createWizard<
       : TStorage extends "controlled"
       ? {
           data: $PartialData;
+          patchData: $PatchDataFunction;
         }
       : {
           data?: $PartialData;
@@ -454,7 +455,7 @@ export function createWizard<
 
       const data: $PartialData = {};
       data[step] = form.getValues();
-      context.patchData(data);
+      await context.patchData(data);
     }, []);
 
     useOnMount(() => {
@@ -472,8 +473,6 @@ export function createWizard<
           step,
           data,
         });
-
-        context.patchData(data);
       };
     });
     const handleSubmit = React.useCallback(
