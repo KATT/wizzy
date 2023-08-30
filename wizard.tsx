@@ -43,7 +43,12 @@ function stringOrNull(data: unknown): null | string {
 }
 function createCtx<TContext>() {
   const Context = createContext<TContext>(null as any);
-  return [Context.Provider, () => React.useContext(Context)] as const;
+  return [
+    Context.Provider,
+    () => {
+      return React.useContext(Context);
+    },
+  ] as const;
 }
 function jsonParseOrNull(obj: unknown): Record<string, unknown> | null {
   if (!isString(obj)) {
@@ -286,11 +291,9 @@ function createWizard<
     prevStep.current = currentStep;
     return (
       <Provider
-        value={
-          {
-            // ...
-          } as any
-        }
+        value={{
+          push,
+        }}
       >
         {Object.entries(config.steps).map(([step, children]) => (
           <></>
