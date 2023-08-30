@@ -408,17 +408,15 @@ export function createWizard<
   }
 
   function Wizard<TStart extends $Step>(
-    props:
-      | ({
-          id: string;
-          start: TStart;
-          steps: Record<$Step, React.ReactNode>;
-        } & { storage: $Storage })
-      | (TStart extends $EndStepWithData
-          ? { data: DataRequiredForStep<TStart> }
-          : {
-              data?: $PartialData;
-            }),
+    props: {
+      id: string;
+      start: TStart;
+      steps: Record<$Step, React.ReactNode>;
+    } & (TStart extends $EndStepWithData
+      ? { data: DataRequiredForStep<TStart> }
+      : {
+          data?: $PartialData;
+        }),
   ) {
     const router = useRouter();
     const mounted = useMountedOnClient();
