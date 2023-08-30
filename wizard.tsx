@@ -147,10 +147,7 @@ function createWizard<
   const [Provider, useContext] = createCtx<{
     start: $Step;
     currentStep: $Step;
-    data: $PartialData;
-    setStepData: $SetStepDataFunction;
-    setData: React.Dispatch<React.SetStateAction<$PartialData>>;
-    setState: (state: $StoredWizardState) => void;
+    setState: (state: Partial<$StoredWizardState>) => void;
     state: $StoredWizardState;
     push: $GoToStepFunction;
   }>();
@@ -297,6 +294,10 @@ function createWizard<
       <Provider
         value={{
           push,
+          start: props.start,
+          currentStep,
+          setState: setWizardState,
+          state: wizardState,
         }}
       >
         {Object.entries(config.steps).map(([step, children]) => (
@@ -350,12 +351,17 @@ function createWizard<
       schema: schema!,
       defaultValues: {
         ...opts?.defaultValues,
-        ...(context.data as any)?.[step],
+        ...context.state.data[step],
       },
     });
 
     const setStepData = React.useCallback(() => {
-      context.setStepData(step, form.getValues());
+      const data = {
+        [step as $DataStep]: form.getValues(),
+      } as $PartialData;
+      context.setState({
+        data,
+      });
     }, []);
     useOnMount(() => {
       if (!isEndStep(step)) {
@@ -387,13 +393,10 @@ function createWizard<
     const context = useContext();
     const router = useRouter();
 
-    return React.useMemo(
-      () => ({
-        push: context.push,
-        setStepData: context.setStepData,
-      }),
-      [context.push, context.setStepData],
-    );
+    return {
+      push: context.push,
+      setStepData: context.setStepData,
+    };
   };
 
   // Would be nicer, but reqs refactoring all forms:
