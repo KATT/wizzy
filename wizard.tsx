@@ -45,8 +45,12 @@ function createCtx<TContext>() {
   const Context = createContext<TContext>(null as any);
   return [
     Context.Provider,
-    () => {
-      return React.useContext(Context);
+    (): NonNullable<TContext> => {
+      const value = React.useContext(Context);
+      if (!value) {
+        throw new Error("useContext must be used within a Provider");
+      }
+      return value;
     },
   ] as const;
 }
