@@ -61,7 +61,17 @@ function Step2() {
   const wizard = Test.useContext();
   const form = Test.useForm("two");
   return (
-    <Form {...form}>
+    <Form
+      {...form}
+      handleSubmit={async () => {
+        await form.saveState();
+        wizard.push("three", {
+          three: {
+            id: "123",
+          },
+        });
+      }}
+    >
       <h1>Step 2</h1>
       <input {...form.form.register("message")} />
       <SubmitButton>Next</SubmitButton>

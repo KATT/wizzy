@@ -16,7 +16,7 @@ export function createWizard<
     Record<TStepTuple[number] | TEndTuple[number], ZodType>
   >,
   TLinear extends boolean,
-  TControlledData extends boolean = false,
+  TStorage extends "session" | "controlled" = "session",
 >(config: {
   id: string;
   /**
@@ -30,7 +30,11 @@ export function createWizard<
    * Is it a Linear flow or does it have branches
    */
   linear: TLinear;
-  controlled?: TControlledData;
+  /**
+   * If true, the wizard will not store any data in session storage
+   * @default 'session'
+   */
+  storage?: TStorage;
 }) {
   // <Generics>
   type AssertZodType<T> = T extends ZodType ? T : never;
@@ -82,20 +86,22 @@ export function createWizard<
   // </Generics>
 
   // <Variables>
-  const allSteps: $Step[] = [...config.steps, ...config.end];
-
-  const stepQueryKey = `w_${config.id}`;
-
-  const $types = null as unknown as {
-    EndStep: $EndStep;
-    AnyStep: $Step;
-    Data: $Data;
-    DataStep: $DataStep;
+  const _def = {
+    ...config,
+    storage: config.storage ?? ("session" as TStorage),
+    $types: null as null as unknown as {
+      EndStep: $EndStep;
+      AnyStep: $Step;
+      Data: $Data;
+      DataStep: $DataStep;
+    },
+    allSteps: [...config.steps, ...config.end] as $Step[],
+    stepQueryKey: `w_${config.id}`,
   };
   // </Variables>
 
   function isEndStep(step: $Step): step is $EndStep {
-    return config.end.includes(step as any);
+    return _def.end.includes(step as any);
   }
 
   const [Provider, useContext] = createCtx<{
@@ -133,7 +139,7 @@ export function createWizard<
   }
 
   const sessionKey = (id: string, source: "data" | "history") =>
-    `${config.id}_${id}_${source}`;
+    `${_def.id}_${id}_${source}`;
   function InnerWizard(props: {
     id: string;
     start: $Step;
@@ -162,9 +168,9 @@ export function createWizard<
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
      *
      **/
-    const queryStep = stringOrNull(router.query[stepQueryKey]);
+    const queryStep = stringOrNull(router.query[_def.stepQueryKey]);
     const requestedStep: $Step | null =
-      queryStep && allSteps.includes(queryStep) ? queryStep : null;
+      queryStep && _def.allSteps.includes(queryStep) ? queryStep : null;
 
     const patchData: $PatchDataFunction = React.useCallback(
       (newData) => {
@@ -183,29 +189,29 @@ export function createWizard<
       }
 
       console.log("requested step", requestedStep);
-      const isEndStep = config.end.includes(requestedStep as any);
+      const isEndStep = _def.end.includes(requestedStep as any);
 
       if (isEndStep) {
         // for end steps we validate the data
-        const schema = config.schema[requestedStep];
+        const schema = _def.schema[requestedStep];
         if (schema && !schema.safeParse(data[requestedStep]).success) {
           return prevStep.current ?? props.start;
         }
         return requestedStep;
       }
 
-      const requestedIdx = allSteps.indexOf(requestedStep);
+      const requestedIdx = _def.allSteps.indexOf(requestedStep);
       console.log({ requestedIdx });
       if (
-        config.linear &&
-        !config.steps.every((step, index) => {
+        _def.linear &&
+        !_def.steps.every((step, index) => {
           // check all previous steps' data requirements are fulfilled
           if (index >= requestedIdx) {
             // skip current step and all next steps
             return true;
           }
 
-          const schema = (config.schema as Record<string, ZodType>)[step];
+          const schema = (_def.schema as Record<string, ZodType>)[step];
           return !schema || schema.safeParse(data[step]).success;
         })
       ) {
@@ -218,17 +224,17 @@ export function createWizard<
     }, [requestedStep, data, props.start]);
     console.log({
       requestedStep,
-      stepQueryKey,
+      stepQueryKey: _def.stepQueryKey,
       queryStep,
       currentStep,
-      allSteps,
+      allSteps: _def.allSteps,
     });
 
     const queryForStep = React.useCallback(
       (step: $Step): typeof router.query => {
         return {
-          ...omit(router.query, stepQueryKey),
-          ...(step === props.start ? {} : { [stepQueryKey]: step }),
+          ...omit(router.query, _def.stepQueryKey),
+          ...(step === props.start ? {} : { [_def.stepQueryKey]: step }),
         };
       },
       [router.query],
@@ -238,11 +244,13 @@ export function createWizard<
       if (isEndStep(currentStep)) {
         return null;
       }
-      const idx = allSteps.indexOf(currentStep);
+      const idx = _def.allSteps.indexOf(currentStep);
 
-      const prev = config.linear
-        ? config.steps[idx - 1]
-        : [...history].reverse().find((step) => allSteps.indexOf(step) < idx);
+      const prev = _def.linear
+        ? _def.steps[idx - 1]
+        : [...history]
+            .reverse()
+            .find((step) => _def.allSteps.indexOf(step) < idx);
 
       return prev ?? null;
     }, [history, currentStep]);
@@ -268,7 +276,7 @@ export function createWizard<
 
       if (isEndStep(step) && data) {
         // validate data
-        const schema = config.schema[step];
+        const schema = _def.schema[step];
         if (!schema || !schema.safeParse(data[step]).success) {
           console.error(
             "Invalid data passed to end step - this shouldn't happen",
@@ -332,27 +340,23 @@ export function createWizard<
 
     React.useEffect(() => {
       // reset any end step data if we go to any non-end step
-      const hasDataForEndSteps = config.end.some((step) => !!data[step]);
+      const hasDataForEndSteps = _def.end.some((step) => !!data[step]);
       if (!isEndStep(currentStep) && hasDataForEndSteps) {
-        setDataInner((state) => ({
-          ...state,
-          data: omit(state, config.end),
-        }));
+        setDataInner((data) => omit(data, _def.end));
         return;
       }
       // reset data for all steps when reaching an end step
-      const hasDataForSteps = config.steps.some((step) => !!data[step]);
+      const hasDataForSteps = _def.steps.some((step) => !!data[step]);
       if (isEndStep(currentStep) && hasDataForSteps) {
-        setDataInner((state) => ({
-          ...state,
-          data: omit(state, config.steps),
-        }));
+        setDataInner((data) => omit(data, _def.steps));
+        return;
       }
     }, [currentStep]);
 
     const transitionType =
       prevStep.current &&
-      allSteps.indexOf(prevStep.current) > allSteps.indexOf(currentStep)
+      _def.allSteps.indexOf(prevStep.current) >
+        _def.allSteps.indexOf(currentStep)
         ? "backward"
         : "forward";
 
@@ -400,13 +404,13 @@ export function createWizard<
       <InnerWizard
         {...props}
         data={props.data as $PartialData}
-        key={config.id + props.id}
+        key={_def.id + props.id}
       />
     );
   }
 
-  Wizard.displayName = `Wizard(${config.id})`;
-  Wizard.$types = $types;
+  Wizard.displayName = `Wizard(${_def.id})`;
+  Wizard.$types = _def.$types;
 
   Wizard.useForm = function useForm<
     TStep extends $DataStep & TStepTuple[number],
@@ -418,7 +422,7 @@ export function createWizard<
   ) {
     const context = useContext();
 
-    const schema = config.schema[step];
+    const schema = _def.schema[step];
     console.log("data", context.data);
     const form = useZodForm({
       schema: schema!,
@@ -471,8 +475,8 @@ export function createWizard<
         await saveState();
 
         // go to next step
-        if (config.linear) {
-          const nextStep = config.steps[config.steps.indexOf(step) + 1];
+        if (_def.linear) {
+          const nextStep = _def.steps[_def.steps.indexOf(step) + 1];
           console.log("next step", nextStep);
           if (nextStep) {
             const data: $PartialData = {};
@@ -501,7 +505,7 @@ export function createWizard<
     const data = context.data;
     const get = React.useCallback(
       <TStep extends $DataStep>(step: TStep): $Data[TStep] => {
-        const schema = config.schema[step];
+        const schema = _def.schema[step];
         const result = schema!.safeParse(data[step]);
         if (!result.success) {
           console.error(
