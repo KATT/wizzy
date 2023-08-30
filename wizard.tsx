@@ -165,11 +165,13 @@ function createWizard<
     // step is controlled by the url
     const router = useRouter();
 
-    const [wizardState, setWizardStateInner] =
-      useSessionStorage<$StoredWizardState>(config.id + "_" + props.id, {
+    const [state, setStateInner] = useSessionStorage<$StoredWizardState>(
+      config.id + "_" + props.id,
+      {
         history: [],
         data: props.data ?? {},
-      });
+      },
+    );
 
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
@@ -179,21 +181,21 @@ function createWizard<
     const requestedStep: $Step | null =
       queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
-    const setWizardState: $SetWizardStateFunction = React.useCallback(
+    const setState: $SetWizardStateFunction = React.useCallback(
       (state) => {
-        setWizardStateInner((obj) => {
+        setStateInner((obj) => {
           const newObj = { ...obj, ...state };
           for (const key in state.data) {
             newObj.data[key] = {
-              ...obj.data[key],
               ...(state.data[key] as Record<string, unknown>),
+              ...obj.data[key],
             };
           }
 
           return newObj;
         });
       },
-      [setWizardStateInner],
+      [setStateInner],
     );
 
     const prevStep = React.useRef<$Step | null>(null);
@@ -209,10 +211,7 @@ function createWizard<
       if (isEndStep) {
         // for end steps we validate the data
         const schema = config.schema[requestedStep];
-        if (
-          schema &&
-          !schema.safeParse(wizardState.data[requestedStep]).success
-        ) {
+        if (schema && !schema.safeParse(state.data[requestedStep]).success) {
           return prevStep.current ?? props.start;
         }
         return requestedStep;
@@ -229,7 +228,7 @@ function createWizard<
           }
 
           const schema = (config.schema as Record<string, ZodType>)[step];
-          return !schema || schema.safeParse(wizardState.data[step]).success;
+          return !schema || schema.safeParse(state.data[step]).success;
         })
       ) {
         // if they arent' fulfilled, go to start step
@@ -252,7 +251,7 @@ function createWizard<
     const goBackLink = React.useMemo((): LinkProps => {
       const idx = allSteps.indexOf(currentStep);
       const previousStep: $Step =
-        [...wizardState.history]
+        [...state.history]
           .reverse()
           .find((step) => allSteps.indexOf(step) < idx) ?? props.start;
       return {
@@ -262,11 +261,11 @@ function createWizard<
         shallow: true,
         scroll: false,
       };
-    }, [wizardState.history, currentStep, router.query]);
+    }, [state.history, currentStep, router.query]);
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       if (data) {
-        setWizardState({
+        setState({
           data,
         });
       }
@@ -296,7 +295,7 @@ function createWizard<
 
     // update history when navigating
     React.useEffect(() => {
-      setWizardStateInner((state) => {
+      setStateInner((state) => {
         const lastHistory = state.history.at(-1);
         if (lastHistory === currentStep) {
           return state;
@@ -331,22 +330,18 @@ function createWizard<
 
     React.useEffect(() => {
       // reset any end step data if we go to any non-end step
-      const hasDataForEndSteps = config.end.some(
-        (step) => !!wizardState.data[step],
-      );
+      const hasDataForEndSteps = config.end.some((step) => !!state.data[step]);
       if (!isEndStep(currentStep) && hasDataForEndSteps) {
-        setWizardStateInner((state) => ({
+        setStateInner((state) => ({
           ...state,
           data: omit(state.data, config.end),
         }));
         return;
       }
       // reset data for all steps when reaching an end step
-      const hasDataForSteps = config.steps.some(
-        (step) => !!wizardState.data[step],
-      );
+      const hasDataForSteps = config.steps.some((step) => !!state.data[step]);
       if (isEndStep(currentStep) && hasDataForSteps) {
-        setWizardStateInner((state) => ({
+        setStateInner((state) => ({
           ...state,
           data: omit(state.data, config.steps),
         }));
@@ -366,8 +361,8 @@ function createWizard<
           push,
           start: props.start,
           currentStep,
-          setState: setWizardState,
-          state: wizardState,
+          setState: setState,
+          state: state,
         }}
       >
         {Object.entries(config.steps).map(([step, children]) => (
