@@ -5,6 +5,7 @@ import { useZodForm } from "./useZodForm";
 import { useSessionStorage } from "usehooks-ts";
 import { useMemo } from "react";
 import { useEffect } from "react";
+import { LinkProps } from "next/link";
 
 export type DistributiveOmit<T, TKeys extends keyof T> = T extends unknown
   ? Omit<T, TKeys>
@@ -230,17 +231,21 @@ function createWizard<
       return requestedStep;
     }, []);
 
-    const goBackQuery = React.useMemo(() => {
+    const goBackLink: LinkProps = React.useMemo(() => {
       const idx = allSteps.indexOf(currentStep);
       const previousStep: $Step =
         [...wizardState.history]
           .reverse()
           .find((step) => allSteps.indexOf(step) < idx) ?? props.start;
       return {
-        query: {
-          ...router.query,
-          [stepQueryKey]: previousStep,
+        href: {
+          query: {
+            ...router.query,
+            [stepQueryKey]: previousStep,
+          },
         },
+        shallow: true,
+        scroll: false,
       };
     }, [wizardState.history, currentStep, router.query]);
 
