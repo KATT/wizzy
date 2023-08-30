@@ -1,81 +1,21 @@
 import { useRouter } from "next/router";
-import React, { createContext, useRef } from "react";
+import React, { useRef } from "react";
 import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
 import { useSessionStorage } from "usehooks-ts";
 import { useMemo } from "react";
-import { useEffect } from "react";
 import { LinkProps } from "next/link";
+import { useOnMount } from "./useOnMount";
+import { createCtx, stringOrNull, omit } from "./utils";
 
-export type DistributiveOmit<T, TKeys extends keyof T> = T extends unknown
-  ? Omit<T, TKeys>
-  : never;
-
-/**
- * Omit keys from an object.
- * @example
- * omit({foo: 'bar', baz: '1'}, 'baz'); // -> { foo: 'bar' }
- * omit({foo: 'bar', baz: '1'}, ['baz']); // -> { foo: 'bar' }
- * omit({foo: 'bar', baz: '1'}, 'foo', 'baz'); // -> {}
- * omit({foo: 'bar', baz: '1'}, ['foo', 'baz']); // -> {}
- */
-export function omit<
-  TObj extends Record<string, unknown>,
-  TKey extends keyof TObj,
->(obj: TObj, ...keys: TKey[] | [TKey[]]): DistributiveOmit<TObj, TKey> {
-  const actualKeys: string[] = Array.isArray(keys[0])
-    ? (keys[0] as string[])
-    : (keys as string[]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const newObj: any = Object.create(null);
-  for (const key in obj) {
-    if (!actualKeys.includes(key)) {
-      newObj[key] = obj[key];
-    }
-  }
-  return newObj;
-}
-function isString(data: unknown): data is string {
-  return typeof data === "string";
-}
-function stringOrNull(data: unknown): null | string {
-  return isString(data) ? data : null;
-}
-function createCtx<TContext>() {
-  const Context = createContext<TContext>(null as any);
-  return [
-    Context.Provider,
-    (): NonNullable<TContext> => {
-      const value = React.useContext(Context);
-      if (!value) {
-        throw new Error("useContext must be used within a Provider");
-      }
-      return value;
-    },
-  ] as const;
-}
-function jsonParseOrNull(obj: unknown): Record<string, unknown> | null {
-  if (!isString(obj)) {
-    return null;
-  }
-  try {
-    return JSON.parse(obj);
-  } catch {
-    // noop
-  }
-  return null;
-}
-function useOnMount(_callback: () => void | (() => void)) {}
-
-function createWizard<
+export function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
   TSchemaRecord extends Partial<
     Record<TStepTuple[number] | TEndTuple[number], ZodType>
   >,
   TLinear extends boolean,
-  ControlledData extends boolean,
+  TControlledData extends boolean = false,
 >(config: {
   id: string;
   /**
@@ -89,6 +29,7 @@ function createWizard<
    * Is it a Linear flow or does it have branches
    */
   linear: TLinear;
+  controlled?: TControlledData;
 }) {
   // <Generics>
   type AssertZodType<T> = T extends ZodType ? T : never;
@@ -537,80 +478,4 @@ function createWizard<
   // }
 
   return Wizard;
-}
-
-/// --------------- test wizard ------------
-const Test = createWizard({
-  steps: ["one", "two"],
-  end: ["three"],
-  id: "testing",
-  schema: {
-    one: z.object({
-      name: z.string(),
-    }),
-    three: z.object({
-      id: z.string(),
-    }),
-    // @ts-expect-error TODO: not a valid step
-    moo: z.object({}),
-  },
-  linear: true,
-});
-
-Test.useForm("one", {
-  defaultValues: {
-    name: "test",
-  },
-});
-
-const context = Test.useContext();
-context.push("one");
-context.push("two");
-
-// @ts-expect-error no arg passed
-context.push("three", {});
-
-Test.$types.Data.three;
-
-type $Types = typeof Test.$types;
-
-type EndStepWithData = typeof Test.$types.DataStep & typeof Test.$types.EndStep;
-
-function MyComponent() {
-  return (
-    <Test
-      id="123"
-      start="three"
-      data={{
-        three: {
-          id: "123",
-        },
-      }}
-    />
-  );
-}
-
-// ---------------- onboarding wizard with remote storage -----
-const Onboarding = createWizard({
-  steps: ["one", "two"],
-  end: ["three"],
-  id: "onboarding",
-  schema: {
-    one: z.object({
-      name: z.string(),
-    }),
-    three: z.object({
-      applicationId: z.string(),
-    }),
-  },
-  linear: true,
-});
-
-function OnboardingWizard() {
-  const data = {
-    one: {
-      name: "test",
-    },
-  };
-  return <Onboarding id="123" start="one" data={data} onPatch={() => {}} />;
 }
