@@ -165,13 +165,13 @@ function createWizard<
 
   function patchState(
     from: $StoredWizardState,
-    to: Partial<$StoredWizardState>,
+    patch: Partial<$StoredWizardState>,
   ) {
-    const toLength = Object.keys(to).length;
+    const patchLength = Object.keys(patch).length;
     if (
-      !to ||
-      toLength === 0 ||
-      (toLength === 1 && to.data && Object.keys(to.data).length === 0)
+      !patch ||
+      patchLength === 0 ||
+      (patchLength === 1 && patch.data && Object.keys(patch.data).length === 0)
     ) {
       return from;
     }
@@ -181,7 +181,7 @@ function createWizard<
         ...from.data,
       },
     };
-    const newData = to.data;
+    const newData = patch.data;
 
     // patch each data entry individually
     for (const key in newData) {
