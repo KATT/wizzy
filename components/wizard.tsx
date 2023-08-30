@@ -100,41 +100,29 @@ export function createWizard<
   const [Provider, useContext] = createCtx<{
     start: $Step;
     currentStep: $Step;
+    data: $PartialData;
     patchData: $PatchDataFunction;
-    state: $StoredWizardState;
+    history: $Step[];
     push: $GoToStepFunction;
   }>();
 
-  function patchState(
-    from: $StoredWizardState,
-    patch: Partial<$StoredWizardState>,
-  ) {
-    console.log(">>>>  patch >>>>>", from, patch);
-    const patchLength = Object.keys(patch).length;
-    if (
-      !patch ||
-      patchLength === 0 ||
-      (patchLength === 1 && patch.data && Object.keys(patch.data).length === 0)
-    ) {
-      console.log("no patch", { patchLength, patch });
+  function patchDataFn(from: $PartialData, patch: $PartialData | undefined) {
+    console.log(">>>>  patch >>>>>", { from, patch });
+    if (!patch || !Object.keys(patch).length) {
+      console.log("no patch");
       // no patch of the data, return original state
       return from;
     }
-    const nextState: $StoredWizardState = {
+    const nextState: $PartialData = {
       ...from,
-      data: {
-        ...from.data,
-      },
     };
-    const newData = patch.data;
 
-    console.log("patching data", newData, patch);
     // patch each data entry individually
-    for (const key in newData) {
+    for (const key in patch) {
       console.log("patching", key);
-      nextState.data[key] = {
-        ...from.data?.[key],
-        ...newData[key],
+      nextState[key] = {
+        ...from[key],
+        ...patch[key],
       };
     }
     console.log("nextState", nextState);
@@ -152,23 +140,20 @@ export function createWizard<
     // step is controlled by the url
     const router = useRouter();
 
-    const [innerState, setStateInner] = useSessionStorage<$StoredWizardState>(
-      config.id + "_" + props.id,
-      {
-        history: [],
-        data: props.data ?? {},
-      },
+    const [innerData, setDataInner] = useSessionStorage<$PartialData>(
+      config.id + "_" + props.id + "_data",
+      props.data ?? {},
+    );
+    const [history, setHistory] = useSessionStorage<$Step[]>(
+      config.id + "_" + props.id + "_history",
+      [],
     );
 
-    const state = useMemo(() => {
-      if (!props.data) {
-        return innerState;
-      }
-      return patchState(innerState, {
-        data: props.data,
-      });
-    }, [innerState, props.data]);
-    console.log("state", { innerState, state });
+    const data = useMemo(
+      () => patchDataFn(innerData, props.data),
+      [innerData, props.data],
+    );
+    console.log("state", { innerData, data });
     // console.log({state})
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
@@ -180,16 +165,9 @@ export function createWizard<
 
     const patchData: $PatchDataFunction = React.useCallback(
       (newData) => {
-        setStateInner((state) => {
-          console.log("patching data", newData);
-          const newState = patchState(state, {
-            data: newData,
-          });
-          console.log("new state", newState);
-          return newState;
-        });
+        setDataInner((state) => patchDataFn(state, newData));
       },
-      [setStateInner],
+      [setDataInner],
     );
 
     const prevStep = React.useRef<$Step | null>(null);
@@ -207,7 +185,7 @@ export function createWizard<
       if (isEndStep) {
         // for end steps we validate the data
         const schema = config.schema[requestedStep];
-        if (schema && !schema.safeParse(state.data[requestedStep]).success) {
+        if (schema && !schema.safeParse(data[requestedStep]).success) {
           return prevStep.current ?? props.start;
         }
         return requestedStep;
@@ -225,7 +203,7 @@ export function createWizard<
           }
 
           const schema = (config.schema as Record<string, ZodType>)[step];
-          return !schema || schema.safeParse(state.data[step]).success;
+          return !schema || schema.safeParse(data[step]).success;
         })
       ) {
         console.log("not fulfilled step 2, going to start step", props.start);
@@ -234,7 +212,7 @@ export function createWizard<
       }
 
       return requestedStep;
-    }, [requestedStep, state.data, props.start]);
+    }, [requestedStep, data, props.start]);
     console.log({
       requestedStep,
       stepQueryKey,
@@ -261,12 +239,10 @@ export function createWizard<
 
       const prev = config.linear
         ? config.steps[idx - 1]
-        : [...state.history]
-            .reverse()
-            .find((step) => allSteps.indexOf(step) < idx);
+        : [...history].reverse().find((step) => allSteps.indexOf(step) < idx);
 
       return prev ?? null;
-    }, [state.history, currentStep]);
+    }, [history, currentStep]);
 
     const goBackLink = React.useMemo((): LinkProps | null => {
       if (!previousStep) {
@@ -279,7 +255,7 @@ export function createWizard<
         shallow: true,
         scroll: false,
       };
-    }, [state.history, currentStep, router.query, previousStep]);
+    }, [history, currentStep, router.query, previousStep]);
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       console.log("push", step, data);
@@ -317,19 +293,15 @@ export function createWizard<
     // update history when navigating
     React.useEffect(() => {
       console.log({ currentStep });
-      setStateInner((state) => {
+      setHistory((state) => {
         console.log("setting history");
-        const lastHistory = state.history.at(-1);
+        const lastHistory = state.at(-1);
         if (lastHistory === currentStep) {
           return state;
         }
 
-        const history =
-          currentStep === props.start ? [props.start] : state.history;
-        return {
-          ...state,
-          history,
-        };
+        const history = currentStep === props.start ? [props.start] : state;
+        return history;
       });
     }, [currentStep]);
 
@@ -357,20 +329,20 @@ export function createWizard<
 
     React.useEffect(() => {
       // reset any end step data if we go to any non-end step
-      const hasDataForEndSteps = config.end.some((step) => !!state.data[step]);
+      const hasDataForEndSteps = config.end.some((step) => !!data[step]);
       if (!isEndStep(currentStep) && hasDataForEndSteps) {
-        setStateInner((state) => ({
+        setDataInner((state) => ({
           ...state,
-          data: omit(state.data, config.end),
+          data: omit(state, config.end),
         }));
         return;
       }
       // reset data for all steps when reaching an end step
-      const hasDataForSteps = config.steps.some((step) => !!state.data[step]);
+      const hasDataForSteps = config.steps.some((step) => !!data[step]);
       if (isEndStep(currentStep) && hasDataForSteps) {
-        setStateInner((state) => ({
+        setDataInner((state) => ({
           ...state,
-          data: omit(state.data, config.steps),
+          data: omit(state, config.steps),
         }));
       }
     }, [currentStep]);
@@ -389,7 +361,8 @@ export function createWizard<
           start: props.start,
           currentStep,
           patchData,
-          state: state,
+          data,
+          history,
         }}
       >
         {goBackLink && <Link {...goBackLink}>Go back</Link>}
@@ -438,12 +411,12 @@ export function createWizard<
     const context = useContext();
 
     const schema = config.schema[step];
-    console.log("data", context.state.data);
+    console.log("data", context.data);
     const form = useZodForm({
       schema: schema!,
       defaultValues: {
         ...opts?.defaultValues,
-        ...context.state.data[step],
+        ...context.data[step],
       },
     });
     const isSubmitted = useRef(false);
@@ -500,7 +473,7 @@ export function createWizard<
     const context = useContext();
     const router = useRouter();
 
-    const data = context.state.data;
+    const data = context.data;
     const get = React.useCallback(
       <TStep extends $DataStep>(step: TStep): $Data[TStep] => {
         const schema = config.schema[step];
