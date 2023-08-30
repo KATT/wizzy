@@ -163,6 +163,36 @@ function createWizard<
     push: $GoToStepFunction;
   }>();
 
+  function patchState(
+    from: $StoredWizardState,
+    to: Partial<$StoredWizardState>,
+  ) {
+    const toLength = Object.keys(to).length;
+    if (
+      !to ||
+      toLength === 0 ||
+      (toLength === 1 && to.data && Object.keys(to.data).length === 0)
+    ) {
+      return from;
+    }
+    const nextState: $StoredWizardState = {
+      ...from,
+      data: {
+        ...from.data,
+      },
+    };
+    const newData = to.data;
+
+    // patch each data entry individually
+    for (const key in newData) {
+      nextState.data[key] = {
+        ...from.data?.[key],
+        ...newData[key],
+      };
+    }
+    return nextState;
+  }
+
   function InnerWizard(props: {
     id: string;
     start: $Step;
@@ -171,13 +201,22 @@ function createWizard<
     // step is controlled by the url
     const router = useRouter();
 
-    const [state, setStateInner] = useSessionStorage<$StoredWizardState>(
+    const [innerState, setStateInner] = useSessionStorage<$StoredWizardState>(
       config.id + "_" + props.id,
       {
         history: [],
         data: props.data ?? {},
       },
     );
+
+    const state = useMemo(() => {
+      if (!props.data) {
+        return innerState;
+      }
+      return patchState(innerState, {
+        data: props.data,
+      });
+    }, [innerState, props.data]);
 
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
@@ -190,22 +229,9 @@ function createWizard<
     const patchData: $PatchDataFunction = React.useCallback(
       (newData) => {
         setStateInner((state) => {
-          const nextState: $StoredWizardState = {
-            ...state,
-            data: {
-              ...state.data,
-            },
-          };
-
-          // patch each data entry individually
-          for (const key in newData) {
-            nextState.data[key] = {
-              ...state.data?.[key],
-              ...newData[key],
-            };
-          }
-
-          return nextState;
+          return patchState(state, {
+            data: newData,
+          });
         });
       },
       [setStateInner],
