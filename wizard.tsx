@@ -414,8 +414,6 @@ function createWizard<
       defaultValues?: $PartialData[TStep];
     },
   ) {
-    const schemas = config.schema as Required<TSchemaRecord>;
-
     const context = useContext();
 
     const schema = config.schema[step];
