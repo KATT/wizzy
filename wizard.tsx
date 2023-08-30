@@ -260,13 +260,6 @@ function createWizard<
       return requestedStep;
     }, []);
 
-    useOnMount(() => {
-      if (isEndStep(currentStep)) {
-        // reset wizard when we reach the end step
-        // resetWizard();
-      }
-    });
-
     React.useEffect(() => {
       if (requestedStep === currentStep) {
         return;
@@ -277,6 +270,34 @@ function createWizard<
         query: omit(router.query, stepQueryKey),
       });
     }, [router.query]);
+
+    React.useEffect(() => {
+      // reset any end step data if we go to any non-end step
+      const hasDataForEndSteps = config.end.some(
+        (step) => !!wizardState.data[step],
+      );
+      if (!isEndStep(currentStep) && hasDataForEndSteps) {
+        setWizardState({
+          data: config.end.reduce((acc, step) => {
+            acc[step] = undefined;
+            return acc;
+          }, {} as $PartialData),
+        });
+        return;
+      }
+      // reset data for all steps when reaching an end step
+      const hasDataForSteps = config.steps.some(
+        (step) => !!wizardState.data[step],
+      );
+      if (isEndStep(currentStep) && hasDataForSteps) {
+        setWizardState({
+          data: config.steps.reduce((acc, step) => {
+            acc[step] = undefined;
+            return acc;
+          }, {} as $PartialData),
+        });
+      }
+    }, [currentStep]);
 
     const transitionType =
       prevStep.current &&
