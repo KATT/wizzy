@@ -207,8 +207,8 @@ export function createWizard<
         config.linear &&
         !config.steps.every((step, index) => {
           // check all previous steps' data requirements are fulfilled
-          if (index <= requestedIdx) {
-            // skip current step and all previous steps
+          if (index >= requestedIdx) {
+            // skip current step and all next steps
             return true;
           }
 
@@ -216,7 +216,7 @@ export function createWizard<
           return !schema || schema.safeParse(state.data[step]).success;
         })
       ) {
-        console.log("not fulfilled");
+        console.log("not fulfilled step 2, going to start step", props.start);
         // if they arent' fulfilled, go to start step
         return props.start;
       }
@@ -241,16 +241,23 @@ export function createWizard<
       [router.query],
     );
 
-    const goBackLink = React.useMemo((): LinkProps | null => {
+    const previousStep = React.useMemo((): $Step | null => {
+      if (isEndStep(currentStep)) {
+        return null;
+      }
       const idx = allSteps.indexOf(currentStep);
 
-      const previousStep: $Step =
-        (config.linear
-          ? config.steps[idx - 1]
-          : [...state.history]
-              .reverse()
-              .find((step) => allSteps.indexOf(step) < idx)) ?? props.start;
-      if (previousStep === currentStep) {
+      const prev = config.linear
+        ? config.steps[idx - 1]
+        : [...state.history]
+            .reverse()
+            .find((step) => allSteps.indexOf(step) < idx);
+
+      return prev ?? null;
+    }, [state.history, currentStep]);
+
+    const goBackLink = React.useMemo((): LinkProps | null => {
+      if (!previousStep) {
         return null;
       }
       return {
@@ -260,7 +267,7 @@ export function createWizard<
         shallow: true,
         scroll: false,
       };
-    }, [state.history, currentStep, router.query]);
+    }, [state.history, currentStep, router.query, previousStep]);
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       console.log("push", step, data);
@@ -318,6 +325,10 @@ export function createWizard<
       if (requestedStep === currentStep || !router.isReady) {
         return;
       }
+      console.log("updating query params because of requestedStep mismatch", {
+        requestedStep,
+        currentStep,
+      });
 
       void router.replace(
         {
@@ -329,7 +340,7 @@ export function createWizard<
           scroll: false,
         },
       );
-    }, [currentStep]);
+    }, [currentStep, router.isReady, requestedStep]);
 
     React.useEffect(() => {
       // reset any end step data if we go to any non-end step

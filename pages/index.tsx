@@ -11,6 +11,9 @@ const Test = createWizard({
     one: z.object({
       name: z.string(),
     }),
+    two: z.object({
+      message: z.string(),
+    }),
     three: z.object({
       id: z.string(),
     }),
@@ -56,21 +59,13 @@ function Step1() {
 }
 function Step2() {
   const wizard = Test.useContext();
+  const form = Test.useForm("two");
   return (
-    <div>
+    <Form {...form}>
       <h1>Step 2</h1>
-      <button
-        onClick={() =>
-          wizard.push("three", {
-            three: {
-              id: "123",
-            },
-          })
-        }
-      >
-        Next
-      </button>
-    </div>
+      <input {...form.form.register("message")} />
+      <SubmitButton>Next</SubmitButton>
+    </Form>
   );
 }
 function Step3() {
