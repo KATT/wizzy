@@ -117,22 +117,22 @@ const Onboarding = createWizard({
 });
 
 function OnboardingStep1() {
-  return <></>;
+  return <>Step 1</>;
 }
 
 function OnboardingStep2() {
-  return <></>;
+  return <>Step 2</>;
 }
 
 function OnboardingStep3() {
-  return <></>;
+  return <>Step 3</>;
 }
 
 function OnboardingWizard() {
   return (
     <Onboarding
       id="123"
-      start="one"
+      start="three"
       steps={{
         one: <OnboardingStep1 />,
         two: <OnboardingStep2 />,
