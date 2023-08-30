@@ -108,7 +108,7 @@ function createWizard<
   }
 
   //   <Generics:Functions>
-  type $SetWizardStateFunction = (state: Partial<$StoredWizardState>) => void;
+  type $PatchStateFunction = (state: Partial<$StoredWizardState>) => void;
 
   type DataRequiredForStep<TStep extends $DataStep> = Record<
     TStep,
@@ -152,7 +152,7 @@ function createWizard<
   const [Provider, useContext] = createCtx<{
     start: $Step;
     currentStep: $Step;
-    setState: $SetWizardStateFunction;
+    patchState: $PatchStateFunction;
     state: $StoredWizardState;
     push: $GoToStepFunction;
   }>();
@@ -181,7 +181,7 @@ function createWizard<
     const requestedStep: $Step | null =
       queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
-    const setState: $SetWizardStateFunction = React.useCallback(
+    const patchState: $PatchStateFunction = React.useCallback(
       (state) => {
         setStateInner((newState) => {
           const newObj: $StoredWizardState = {
@@ -271,7 +271,7 @@ function createWizard<
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       if (data) {
-        setState({
+        patchState({
           data,
         });
       }
@@ -367,7 +367,7 @@ function createWizard<
           push,
           start: props.start,
           currentStep,
-          setState: setState,
+          patchState,
           state: state,
         }}
       >
@@ -437,7 +437,7 @@ function createWizard<
         const data: $PartialData = {};
         data[step] = form.getValues();
 
-        context.setState({ data });
+        context.patchState({ data });
       };
     });
     const handleSubmit = React.useCallback(
@@ -471,7 +471,7 @@ function createWizard<
 
     return {
       push: context.push,
-      setState: context.setState,
+      patchState: context.patchState,
     };
   };
 
