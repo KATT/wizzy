@@ -108,7 +108,9 @@ function createWizard<
   }
 
   //   <Generics:Functions>
-  type $PatchStateFunction = (state: Partial<$StoredWizardState>) => void;
+  type $PatchDataFunction = (
+    newData: Partial<$StoredWizardState["data"]>,
+  ) => void;
 
   type DataRequiredForStep<TStep extends $DataStep> = Record<
     TStep,
@@ -152,7 +154,7 @@ function createWizard<
   const [Provider, useContext] = createCtx<{
     start: $Step;
     currentStep: $Step;
-    patchState: $PatchStateFunction;
+    patchData: $PatchDataFunction;
     state: $StoredWizardState;
     push: $GoToStepFunction;
   }>();
@@ -181,24 +183,25 @@ function createWizard<
     const requestedStep: $Step | null =
       queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
-    const patchState: $PatchStateFunction = React.useCallback(
-      (state) => {
-        setStateInner((newState) => {
-          const newObj: $StoredWizardState = {
+    const patchData: $PatchDataFunction = React.useCallback(
+      (newData) => {
+        setStateInner((state) => {
+          const nextState: $StoredWizardState = {
             ...state,
-            ...newState,
             data: {
               ...state.data,
             },
           };
-          for (const key in newState.data) {
-            newObj.data[key] = {
+
+          // patch each data entry individually
+          for (const key in newData) {
+            nextState.data[key] = {
               ...state.data?.[key],
-              ...newState.data[key],
+              ...newData[key],
             };
           }
 
-          return newObj;
+          return nextState;
         });
       },
       [setStateInner],
@@ -271,7 +274,7 @@ function createWizard<
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       if (data) {
-        patchState({
+        patchData({
           data,
         });
       }
@@ -367,7 +370,7 @@ function createWizard<
           push,
           start: props.start,
           currentStep,
-          patchState,
+          patchData,
           state: state,
         }}
       >
@@ -437,7 +440,7 @@ function createWizard<
         const data: $PartialData = {};
         data[step] = form.getValues();
 
-        context.patchState({ data });
+        context.patchData({ data });
       };
     });
     const handleSubmit = React.useCallback(
@@ -471,7 +474,7 @@ function createWizard<
 
     return {
       push: context.push,
-      patchState: context.patchState,
+      patchData: context.patchData,
     };
   };
 
