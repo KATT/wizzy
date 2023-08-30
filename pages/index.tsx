@@ -90,7 +90,7 @@ function Step3() {
   );
 }
 
-export default function Index() {
+function Testy() {
   return (
     <Test
       id="123"
