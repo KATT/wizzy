@@ -77,6 +77,10 @@ function createWizard<
   TLinear extends boolean,
 >(config: {
   id: string;
+  /**
+   * The steps in the wizard
+   * Order matters - will be used to determine the order of the steps in the wizard when e.g. going back
+   */
   steps: [...TStepTuple];
   end: [...TEndTuple];
   schema: TSchemaRecord;
@@ -274,9 +278,7 @@ function createWizard<
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       if (data) {
-        patchData({
-          data,
-        });
+        patchData(data);
       }
 
       if (isEndStep(step) && data) {
@@ -440,7 +442,7 @@ function createWizard<
         const data: $PartialData = {};
         data[step] = form.getValues();
 
-        context.patchData({ data });
+        context.patchData(data);
       };
     });
     const handleSubmit = React.useCallback(
