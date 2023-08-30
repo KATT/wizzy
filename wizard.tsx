@@ -67,8 +67,6 @@ function jsonParseOrNull(obj: unknown): Record<string, unknown> | null {
 }
 function useOnMount(_callback: () => void | (() => void)) {}
 
-type SetValue<T> = React.Dispatch<React.SetStateAction<T>>;
-
 function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
@@ -108,10 +106,7 @@ function createWizard<
   }
 
   //   <Generics:Functions>
-  type $SetStepDataFunction = <TStep extends $DataStep>(
-    step: TStep,
-    data: $Data[TStep],
-  ) => void;
+  type $SetWizardStateFunction = (state: Partial<$StoredWizardState>) => void;
 
   type DataRequiredForStep<TStep extends $DataStep> = Record<
     TStep,
@@ -147,7 +142,7 @@ function createWizard<
   const [Provider, useContext] = createCtx<{
     start: $Step;
     currentStep: $Step;
-    setState: (state: Partial<$StoredWizardState>) => void;
+    setState: $SetWizardStateFunction;
     state: $StoredWizardState;
     push: $GoToStepFunction;
   }>();
@@ -173,8 +168,8 @@ function createWizard<
     const requestedStep: $Step | null =
       queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
-    const setWizardState = React.useCallback(
-      (state: Partial<$StoredWizardState>) => {
+    const setWizardState: $SetWizardStateFunction = React.useCallback(
+      (state) => {
         setWizardStateInner((obj) => {
           const newObj = { ...obj, ...state };
           for (const key in state.data) {
@@ -386,16 +381,13 @@ function createWizard<
     };
   };
 
-  Wizard.useContext = function useWizard(): {
-    push: $GoToStepFunction;
-    setStepData: $SetStepDataFunction;
-  } {
+  Wizard.useContext = function useWizard() {
     const context = useContext();
     const router = useRouter();
 
     return {
       push: context.push,
-      setStepData: context.setStepData,
+      setState: context.setState,
     };
   };
 
