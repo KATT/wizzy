@@ -2,6 +2,9 @@ import { useRouter } from "next/router";
 import React, { createContext } from "react";
 import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
+import { useSessionStorage } from "usehooks-ts";
+import { useMemo } from "react";
+import { useEffect } from "react";
 
 export type DistributiveOmit<T, TKeys extends keyof T> = T extends unknown
   ? Omit<T, TKeys>
@@ -42,10 +45,6 @@ function createCtx<TContext>() {
   const Context = createContext<TContext>(null as any);
   return [Context.Provider, () => React.useContext(Context)] as const;
 }
-function useSessionStorage(key: string) {
-  return null as any;
-}
-
 function jsonParseOrNull(obj: unknown): Record<string, unknown> | null {
   if (!isString(obj)) {
     return null;
@@ -58,6 +57,9 @@ function jsonParseOrNull(obj: unknown): Record<string, unknown> | null {
   return null;
 }
 function useOnMount(_callback: () => void | (() => void)) {}
+
+type SetValue<T> = React.Dispatch<React.SetStateAction<T>>;
+
 function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
@@ -92,6 +94,10 @@ function createWizard<
   type $Step = TStepTuple[number] | $EndStep | $DataStep;
   type $EndStepWithData = $EndStep & $DataStep;
 
+  interface $StoredWizardState {
+    data: $PartialData;
+  }
+
   //   <Generics:Functions>
   type $SetStepDataFunction = <TStep extends $DataStep>(
     step: TStep,
@@ -116,7 +122,6 @@ function createWizard<
   const allSteps: $Step[] = [...config.steps, ...config.end];
 
   const stepQueryKey = `${config.id}_step`;
-  const dataQueryKey = `${config.id}_data`;
 
   const $types = null as unknown as {
     EndStep: $EndStep;
@@ -136,6 +141,9 @@ function createWizard<
     data: $PartialData;
     setStepData: $SetStepDataFunction;
     setData: React.Dispatch<React.SetStateAction<$PartialData>>;
+    setState: (state: $StoredWizardState) => void;
+    state: $StoredWizardState;
+    push: $GoToStepFunction;
   }>();
 
   function InnerWizard(props: {
@@ -146,9 +154,10 @@ function createWizard<
     // step is controlled by the url
     const router = useRouter();
 
-    const [wizardDataInner, setWizardData] = useSessionStorage(
-      config.id + "_" + props.id,
-    );
+    const [wizardState, setWizardStateInner] =
+      useSessionStorage<$StoredWizardState>(config.id + "_" + props.id, {
+        data: props.data ?? {},
+      });
 
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
@@ -158,20 +167,58 @@ function createWizard<
     const requestedStep: $Step | null =
       queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
-    /**
-     * Data passed through URL - always contextual to the step we're navigating too (we cannot deep link into a flow)
-     */
-    const queryStepData = React.useMemo(
-      () => jsonParseOrNull(router.query[dataQueryKey]),
-      [router.query[dataQueryKey]],
+    const setWizardState = React.useCallback(
+      (state: Partial<$StoredWizardState>) => {
+        setWizardStateInner((obj) => {
+          const newObj = { ...obj, ...state };
+          for (const key in state.data) {
+            newObj.data[key] = {
+              ...obj.data[key],
+              ...(state.data[key] as Record<string, unknown>),
+            };
+          }
+
+          return newObj;
+        });
+      },
+      [setWizardStateInner],
     );
+
+    const push = React.useCallback(async (step: $Step, data: $PartialData) => {
+      if (data) {
+        setWizardState({
+          data,
+        });
+      }
+
+      if (isEndStep(step) && data) {
+        // validate data
+        const schema = config.schema[step];
+        if (!schema || !schema.safeParse(data).success) {
+          console.error(
+            "Invalid data passed to end step - this shouldn't happen",
+            data,
+          );
+          throw new Error("Invalid data passed to end step");
+        }
+      }
+      await router.push(
+        {
+          query: {
+            ...router.query,
+            [stepQueryKey]: step,
+          },
+        },
+        undefined,
+        {
+          shallow: true,
+        },
+      );
+    }, []) as $GoToStepFunction;
+
     const prevStep = React.useRef<$Step | null>(null);
 
     let currentStep: $Step = React.useMemo(() => {
-      if (queryStepData) {
-        // queryStepData needs to be consumed in the context before usage
-        return prevStep.current ?? props.start;
-      }
       // check if requestedStep is a valid step
       if (!requestedStep || requestedStep === props.start) {
         return props.start;
@@ -182,22 +229,27 @@ function createWizard<
       if (isEndStep) {
         // for end steps we validate the data
         const schema = config.schema[requestedStep];
-        if (schema && !schema.safeParse(queryStepData).success) {
-          return props.start;
+        if (
+          schema &&
+          !schema.safeParse(wizardState.data[requestedStep]).success
+        ) {
+          return prevStep.current ?? props.start;
         }
         return requestedStep;
       }
 
+      const currentStepIndex = allSteps.indexOf(currentStep);
       if (
         config.linear &&
         !config.steps.every((step, index) => {
           // check all previous steps' data requirements are fulfilled
-          if (index >= allSteps.indexOf(currentStep)) {
+          if (index <= currentStepIndex) {
+            // skip current step and all previous steps
             return true;
           }
 
           const schema = (config.schema as Record<string, ZodType>)[step];
-          return !schema || schema.safeParse(wizardDataInner[step]).success;
+          return !schema || schema.safeParse(wizardState.data[step]).success;
         })
       ) {
         // if they arent' fulfilled, go to start step
@@ -215,28 +267,13 @@ function createWizard<
     });
 
     React.useEffect(() => {
-      // fix query params when clicking back after completing a step
       if (requestedStep === currentStep) {
         return;
       }
 
-      if (queryStepData) {
-        // consume query step data
-        setWizardData((obj) => {
-          const newObj = { ...obj };
-          for (const key in queryStepData) {
-            newObj[key] = {
-              ...obj[key],
-              ...(queryStepData[key] as Record<string, unknown>),
-            };
-          }
-
-          return newObj;
-        });
-      }
-
+      // the url is not in sync with the current step, so we need to update it
       void router.replace({
-        query: omit(router.query, stepQueryKey, dataQueryKey),
+        query: omit(router.query, stepQueryKey),
       });
     }, [router.query]);
 
@@ -343,46 +380,8 @@ function createWizard<
     const context = useContext();
     const router = useRouter();
 
-    const push = React.useCallback((step: $Step, data: $PartialData) => {
-      if (data) {
-        context.setData((obj) => {
-          const newData = { ...obj };
-          // like above but using .entries and for each
-          for (const [key, value] of Object.entries(data)) {
-            newData[key] = {
-              ...obj[key],
-              ...(value as Record<string, unknown>),
-            };
-          }
-
-          return newData;
-        });
-      }
-
-      if (isEndStep(step) && data) {
-        // validate data
-        const schema = config.schema[step];
-        if (!schema || !schema.safeParse(data).success) {
-          // This shouldn't happen
-          throw new Error("Invalid data passed to end step");
-        }
-        return router.push({
-          query: {
-            ...router.query,
-            [stepQueryKey]: step,
-            [dataQueryKey]: JSON.stringify(data),
-          },
-        });
-      }
-      return router.push({
-        query: {
-          ...router.query,
-          [stepQueryKey]: step,
-        },
-      });
-    }, []) as unknown as $GoToStepFunction;
     return {
-      push,
+      push: context.push,
       setStepData: context.setStepData,
     };
     throw "unimplemented";
