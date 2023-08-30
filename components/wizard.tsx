@@ -9,8 +9,9 @@ import { useOnMount } from "./useOnMount";
 import { createCtx, stringOrNull, omit, assertUnreachable } from "./utils";
 import { useMountedOnClient } from "./useMountedOnClient";
 
-const defaultStores = ["session"] as const;
+const defaultStores = ["sessionStorage"] as const;
 type DefaultStore = (typeof defaultStores)[number];
+
 export function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
