@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import React, { Fragment, ReactNode, useRef } from "react";
+import React, { Fragment, ReactNode, useCallback, useRef } from "react";
 import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
 import { useSessionStorage } from "usehooks-ts";
@@ -141,6 +141,45 @@ export function createWizard<
 
   const sessionKey = (id: string, source: "data" | "history") =>
     `${_def.id}_${id}_${source}`;
+
+  function useStorage(props: { id: string; data?: $PartialData }): {
+    data: $PartialData;
+    patchData: $PatchDataFunction;
+    setData?: React.Dispatch<React.SetStateAction<$PartialData>>;
+  } {
+    // using conditional hooks is okay here because the storage type is static when the wizard is created
+    switch (_def.storage) {
+      case "controlled": {
+        return {
+          data: props.data ?? {},
+          patchData: props.data ? () => {} : () => {},
+        };
+      }
+      case "session": {
+        const [innerData, setData] = useSessionStorage<$PartialData>(
+          sessionKey(props.id, "data"),
+          props.data ?? {},
+        );
+
+        const data = useMemo(
+          () => patchDataFn(innerData, props.data),
+          [innerData, props.data],
+        );
+        return {
+          data,
+          setData,
+          patchData: useCallback(
+            (newData) => {
+              setData((state) => patchDataFn(state, newData));
+            },
+            [setData],
+          ),
+        };
+      }
+    }
+
+    throw new Error(`Unknown storage type ${_def.storage}`);
+  }
   function InnerWizard(props: {
     id: string;
     start: $Step;
@@ -151,23 +190,12 @@ export function createWizard<
     // step is controlled by the url
     const router = useRouter();
 
-    const [innerData, setDataInner] =
-      config.storage === "session"
-        ? useSessionStorage<$PartialData>(
-            sessionKey(props.id, "data"),
-            props.data ?? {},
-          )
-        : React.useState<$PartialData>(props.data ?? {});
+    const store = useStorage(props);
     const [history, setHistory] = useSessionStorage<$Step[]>(
       sessionKey(props.id, "history"),
       [],
     );
 
-    const data = useMemo(
-      () => patchDataFn(innerData, props.data),
-      [innerData, props.data],
-    );
-    console.log("state", { innerData, data });
     // console.log({state})
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
@@ -176,13 +204,6 @@ export function createWizard<
     const queryStep = stringOrNull(router.query[_def.stepQueryKey]);
     const requestedStep: $Step | null =
       queryStep && _def.allSteps.includes(queryStep) ? queryStep : null;
-
-    const patchData: $PatchDataFunction = React.useCallback(
-      (newData) => {
-        setDataInner((state) => patchDataFn(state, newData));
-      },
-      [setDataInner],
-    );
 
     const prevStep = React.useRef<$Step | null>(null);
 
@@ -199,7 +220,7 @@ export function createWizard<
       if (isEndStep) {
         // for end steps we validate the data
         const schema = _def.schema[requestedStep];
-        if (schema && !schema.safeParse(data[requestedStep]).success) {
+        if (schema && !schema.safeParse(store.data[requestedStep]).success) {
           return prevStep.current ?? props.start;
         }
         return requestedStep;
@@ -217,7 +238,7 @@ export function createWizard<
           }
 
           const schema = (_def.schema as Record<string, ZodType>)[step];
-          return !schema || schema.safeParse(data[step]).success;
+          return !schema || schema.safeParse(store.data[step]).success;
         })
       ) {
         console.log("not fulfilled step 2, going to start step", props.start);
@@ -226,7 +247,7 @@ export function createWizard<
       }
 
       return requestedStep;
-    }, [requestedStep, data, props.start]);
+    }, [requestedStep, store.data, props.start]);
     console.log({
       requestedStep,
       stepQueryKey: _def.stepQueryKey,
@@ -276,7 +297,7 @@ export function createWizard<
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       console.log("push", step, data);
       if (data) {
-        patchData(data);
+        store.patchData(data);
       }
 
       if (isEndStep(step) && data) {
@@ -345,15 +366,15 @@ export function createWizard<
 
     React.useEffect(() => {
       // reset any end step data if we go to any non-end step
-      const hasDataForEndSteps = _def.end.some((step) => !!data[step]);
+      const hasDataForEndSteps = _def.end.some((step) => !!store.data[step]);
       if (!isEndStep(currentStep) && hasDataForEndSteps) {
-        setDataInner((data) => omit(data, _def.end));
+        store.setData?.((data) => omit(data, _def.end));
         return;
       }
       // reset data for all steps when reaching an end step
-      const hasDataForSteps = _def.steps.some((step) => !!data[step]);
+      const hasDataForSteps = _def.steps.some((step) => !!store.data[step]);
       if (isEndStep(currentStep) && hasDataForSteps) {
-        setDataInner((data) => omit(data, _def.steps));
+        store.setData?.((data) => omit(data, _def.steps));
         return;
       }
     }, [currentStep]);
@@ -372,8 +393,8 @@ export function createWizard<
           push,
           start: props.start,
           currentStep,
-          patchData,
-          data,
+          patchData: store.patchData,
+          data: store.data,
           history,
         }}
       >
