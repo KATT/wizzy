@@ -9,6 +9,7 @@ import { useOnMount } from "./useOnMount";
 import { createCtx, stringOrNull, omit } from "./utils";
 import { useMountedOnClient } from "./useMountedOnClient";
 
+type StorageType = "session" | "controlled";
 export function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
@@ -16,7 +17,7 @@ export function createWizard<
     Record<TStepTuple[number] | TEndTuple[number], ZodType>
   >,
   TLinear extends boolean,
-  TStorage extends "session" | "controlled" = "session",
+  TStorage extends StorageType = "session",
 >(config: {
   id: string;
   /**
@@ -34,7 +35,7 @@ export function createWizard<
    * If true, the wizard will not store any data in session storage
    * @default 'session'
    */
-  storage?: TStorage;
+  storage?: TStorage & StorageType;
 }) {
   // <Generics>
   type AssertZodType<T> = T extends ZodType ? T : never;
@@ -149,10 +150,13 @@ export function createWizard<
     // step is controlled by the url
     const router = useRouter();
 
-    const [innerData, setDataInner] = useSessionStorage<$PartialData>(
-      sessionKey(props.id, "data"),
-      props.data ?? {},
-    );
+    const [innerData, setDataInner] =
+      config.storage === "session"
+        ? useSessionStorage<$PartialData>(
+            sessionKey(props.id, "data"),
+            props.data ?? {},
+          )
+        : React.useState<$PartialData>(props.data ?? {});
     const [history, setHistory] = useSessionStorage<$Step[]>(
       sessionKey(props.id, "history"),
       [],

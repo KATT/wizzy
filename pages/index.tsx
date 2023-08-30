@@ -90,7 +90,7 @@ function Step3() {
   );
 }
 
-function Testy() {
+function TestWizard() {
   return (
     <Test
       id="123"
@@ -103,3 +103,12 @@ function Testy() {
     />
   );
 }
+
+const Onboarding = createWizard({
+  steps: ["one", "two"],
+  end: ["three"],
+  id: "onboarding",
+  schema: {},
+  linear: true,
+  storage: "controlled",
+});
