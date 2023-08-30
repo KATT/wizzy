@@ -109,12 +109,14 @@ export function createWizard<
     from: $StoredWizardState,
     patch: Partial<$StoredWizardState>,
   ) {
+    console.log("---------patch", from, patch);
     const patchLength = Object.keys(patch).length;
     if (
       !patch ||
       patchLength === 0 ||
       (patchLength === 1 && patch.data && Object.keys(patch.data).length === 0)
     ) {
+      console.log("no patch", { patchLength, patch });
       // no patch of the data, return original state
       return from;
     }
@@ -126,8 +128,10 @@ export function createWizard<
     };
     const newData = patch.data;
 
+    console.log("patching data", newData, patch);
     // patch each data entry individually
     for (const key in newData) {
+      console.log("patching", key);
       nextState.data[key] = {
         ...from.data?.[key],
         ...newData[key],
@@ -172,9 +176,12 @@ export function createWizard<
     const patchData: $PatchDataFunction = React.useCallback(
       (newData) => {
         setStateInner((state) => {
-          return patchState(state, {
+          console.log("patching data", newData);
+          const newState = patchState(state, {
             data: newData,
           });
+          console.log("new state", newState);
+          return newState;
         });
       },
       [setStateInner],
@@ -185,7 +192,7 @@ export function createWizard<
     let currentStep: $Step = React.useMemo(() => {
       // check if requestedStep is a valid step
       if (!requestedStep || requestedStep === props.start) {
-        console.log("no requested step");
+        // console.log("no requested step");
         return props.start;
       }
 
@@ -322,7 +329,7 @@ export function createWizard<
 
     React.useEffect(() => {
       // ensure the url is always in sync with the current step
-      if (requestedStep === currentStep || !router.isReady) {
+      if (!requestedStep || requestedStep === currentStep || !router.isReady) {
         return;
       }
       console.log("updating query params because of requestedStep mismatch", {
@@ -400,6 +407,8 @@ export function createWizard<
           data?: $PartialData;
         }),
   ) {
+    const router = useRouter();
+
     return (
       <InnerWizard
         {...props}
@@ -423,6 +432,7 @@ export function createWizard<
     const context = useContext();
 
     const schema = config.schema[step];
+    console.log("data", context.state.data);
     const form = useZodForm({
       schema: schema!,
       defaultValues: {
@@ -433,14 +443,22 @@ export function createWizard<
     const isSubmitted = useRef(false);
 
     useOnMount(() => {
+      console.log("mount");
       // set draft data on unmount
       return () => {
+        console.log("unmount");
         if (isSubmitted.current) {
+          console.log("skipped");
           return;
         }
 
         const data: $PartialData = {};
         data[step] = form.getValues();
+
+        console.log("setting draft data because of unmount", {
+          step,
+          data,
+        });
 
         context.patchData(data);
       };
