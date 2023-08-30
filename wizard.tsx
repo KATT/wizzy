@@ -274,7 +274,7 @@ function createWizard<
           [stepQueryKey]: previousStep,
         },
       };
-    }, [wizardState.history, router.query]);
+    }, [wizardState.history, currentStep, router.query]);
 
     // update history when navigate
     React.useEffect(() => {
