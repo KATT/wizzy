@@ -187,39 +187,6 @@ function createWizard<
       [setWizardStateInner],
     );
 
-    const push = React.useCallback(async (step: $Step, data: $PartialData) => {
-      if (data) {
-        setWizardState({
-          data,
-        });
-      }
-
-      if (isEndStep(step) && data) {
-        // validate data
-        const schema = config.schema[step];
-        if (!schema || !schema.safeParse(data).success) {
-          console.error(
-            "Invalid data passed to end step - this shouldn't happen",
-            data,
-          );
-          throw new Error("Invalid data passed to end step");
-        }
-      }
-      await router.push(
-        {
-          query: {
-            ...router.query,
-            [stepQueryKey]: step,
-          },
-        },
-        undefined,
-        {
-          shallow: true,
-          scroll: false,
-        },
-      );
-    }, []) as $GoToStepFunction;
-
     const prevStep = React.useRef<$Step | null>(null);
 
     let currentStep: $Step = React.useMemo(() => {
@@ -276,6 +243,39 @@ function createWizard<
         },
       };
     }, [wizardState.history, currentStep, router.query]);
+
+    const push = React.useCallback(async (step: $Step, data: $PartialData) => {
+      if (data) {
+        setWizardState({
+          data,
+        });
+      }
+
+      if (isEndStep(step) && data) {
+        // validate data
+        const schema = config.schema[step];
+        if (!schema || !schema.safeParse(data).success) {
+          console.error(
+            "Invalid data passed to end step - this shouldn't happen",
+            data,
+          );
+          throw new Error("Invalid data passed to end step");
+        }
+      }
+      await router.push(
+        {
+          query: {
+            ...router.query,
+            [stepQueryKey]: step,
+          },
+        },
+        undefined,
+        {
+          shallow: true,
+          scroll: false,
+        },
+      );
+    }, []) as $GoToStepFunction;
 
     // update history when navigating
     React.useEffect(() => {
