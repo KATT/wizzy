@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import React, { useRef } from "react";
+import React, { Fragment, ReactNode, useRef } from "react";
 import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
 import { useSessionStorage } from "usehooks-ts";
@@ -140,6 +140,7 @@ export function createWizard<
     id: string;
     start: $Step;
     data?: $PartialData;
+    steps: Record<$Step, React.ReactNode>;
   }) {
     // step is controlled by the url
     const router = useRouter();
@@ -347,15 +348,10 @@ export function createWizard<
           state: state,
         }}
       >
-        {Object.entries(config.steps).map(([step, children]) => (
-          <></>
-          // <Wizard.Transition
-          //     key={step}
-          //     show={step === wizard.selected}
-          //     transitionType={transitionType}
-          //     >
-          //         {children as React.ReactNode}
-          // </Wizard.Transition>
+        {Object.entries(props.steps).map(([step, children]) => (
+          <Fragment key={step}>
+            {currentStep === step ? (children as ReactNode) : null}
+          </Fragment>
         ))}
       </Provider>
     );
@@ -365,6 +361,7 @@ export function createWizard<
     props: {
       id: string;
       start: TStart;
+      steps: Record<$Step, React.ReactNode>;
     } & (TStart extends $EndStepWithData
       ? { data: DataRequiredForStep<TStart> }
       : {
