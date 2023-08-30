@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createWizard } from "../components/wizard";
+import { Form, SubmitButton } from "../components/useZodForm";
 
 /// --------------- test wizard ------------
 const Test = createWizard({
@@ -38,6 +39,26 @@ type $Types = typeof Test.$types;
 //   controlled: true,
 // });
 
+function Step1() {
+  const form = Test.useForm("one");
+
+  return (
+    <Form {...form}>
+      <SubmitButton>Next</SubmitButton>
+    </Form>
+  );
+}
+
 export default function Index() {
-  return <Test id="123" start="one" />;
+  return (
+    <Test
+      id="123"
+      start="one"
+      steps={{
+        one: <Step1 />,
+        two: <div>two</div>,
+        three: <div>three</div>,
+      }}
+    />
+  );
 }
