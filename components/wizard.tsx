@@ -2,14 +2,15 @@ import { useRouter } from "next/router";
 import React, { Fragment, ReactNode, useCallback, useRef } from "react";
 import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
-import { useSessionStore } from "usehooks-ts";
+import { useSessionStorage } from "usehooks-ts";
 import { useMemo } from "react";
 import Link, { LinkProps } from "next/link";
 import { useOnMount } from "./useOnMount";
 import { createCtx, stringOrNull, omit, assertUnreachable } from "./utils";
 import { useMountedOnClient } from "./useMountedOnClient";
 
-type StoreType = "session" | "controlled";
+const defaultStores = ["session"] as const;
+type DefaultStore = (typeof defaultStores)[number];
 export function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
@@ -51,8 +52,8 @@ export function createWizard<
   interface $Store {
     data: $PartialData;
     patchData: $PatchDataFunction;
-    onReachEndStep: (step: $EndStepWithData) => void;
-    onLeaveEndStep: (step: $EndStepWithData) => void;
+    onReachEndStep?: (step: $EndStepWithData) => void;
+    onLeaveEndStep?: (step: $EndStepWithData) => void;
   }
 
   interface $StoredWizardState {
@@ -146,11 +147,11 @@ export function createWizard<
     id: string;
     data?: $PartialData;
   }): Required<$Store> {
-    const [innerData, setData] = useSessionStore<$PartialData>(
+    const [innerData, setData] = useSessionStorage<$PartialData>(
       sessionKey(props.id, "data"),
       props.data ?? {},
     );
-    const data = useMemo(() => {
+    const data: $PartialData = useMemo(() => {
       return patchDataFn(innerData, props.data);
     }, [innerData, props.data]);
 
@@ -163,12 +164,14 @@ export function createWizard<
     const onReachEndStep = React.useCallback(
       (step: $EndStepWithData) => {
         console.log("onReachEndStep", step);
+        setData((data) => omit(data, _def.steps));
       },
       [setData],
     );
     const onLeaveEndStep = React.useCallback(
       (step: $EndStepWithData) => {
         console.log("onLeaveEndStep", step);
+        setData((data) => omit(data, _def.end));
       },
       [setData],
     );
@@ -185,15 +188,18 @@ export function createWizard<
     start: $Step;
     data?: $PartialData;
     steps: Record<$Step, React.ReactNode>;
-    Store?: $Store;
+    store?: $Store | DefaultStore;
     patchData?: $PatchDataFunction;
   }) {
     // step is controlled by the url
     const router = useRouter();
 
     const defaultStore = useDefaultStore(props);
-    const store = props.Store ?? defaultStore;
-    const [history, setHistory] = useSessionStore<$Step[]>(
+    const store: $Store =
+      props.store && typeof props.store !== "string"
+        ? props.store
+        : defaultStore;
+    const [history, setHistory] = useSessionStorage<$Step[]>(
       sessionKey(props.id, "history"),
       [],
     );
@@ -367,16 +373,14 @@ export function createWizard<
     }, [currentStep, router.isReady, requestedStep]);
 
     React.useEffect(() => {
-      // reset any end step data if we go to any non-end step
-      const hasDataForEndSteps = _def.end.some((step) => !!store.data[step]);
-      if (!isEndStep(currentStep) && hasDataForEndSteps) {
-        return;
-      }
-      // reset data for all steps when reaching an end step
-      const hasDataForSteps = _def.steps.some((step) => !!store.data[step]);
-      if (isEndStep(currentStep) && hasDataForSteps) {
-        store.setData?.((data) => omit(data, _def.steps));
-        return;
+      if (prevStep.current && isEndStep(currentStep)) {
+        store.onReachEndStep?.(currentStep);
+      } else if (
+        prevStep.current &&
+        isEndStep(prevStep.current) &&
+        !isEndStep(currentStep)
+      ) {
+        store.onLeaveEndStep?.(prevStep.current);
       }
     }, [currentStep]);
 
@@ -415,10 +419,19 @@ export function createWizard<
       start: TStart;
       steps: Record<$Step, React.ReactNode>;
     } & (
-      | { Store: $Store }
+      | {
+          /**
+           * Use a custom store instead of the default one which uses session storage
+           */
+          store: $Store;
+        }
       | (TStart extends $EndStepWithData
-          ? { data: DataRequiredForStep<TStart> }
+          ? {
+              store?: DefaultStore;
+              data: DataRequiredForStep<TStart>;
+            }
           : {
+              store?: DefaultStore;
               data?: $PartialData;
             })
     ),

@@ -108,9 +108,12 @@ const Onboarding = createWizard({
   steps: ["one", "two"],
   end: ["three"],
   id: "onboarding",
-  schema: {},
+  schema: {
+    one: z.object({
+      name: z.string(),
+    }),
+  },
   linear: true,
-  storage: "controlled",
 });
 
 function OnboardingStep1() {
@@ -135,8 +138,13 @@ function OnboardingWizard() {
         two: <OnboardingStep2 />,
         three: <OnboardingStep3 />,
       }}
-      data={{}}
-      patchData={async () => {}}
+      store={{
+        patchData(data) {
+          data?.one;
+          console.log("patchData", data);
+        },
+        data: {},
+      }}
     />
   );
 }
