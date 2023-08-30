@@ -17,7 +17,6 @@ export function createWizard<
     Record<TStepTuple[number] | TEndTuple[number], ZodType>
   >,
   TLinear extends boolean,
-  TStorage extends StorageType = "session",
 >(config: {
   id: string;
   /**
@@ -31,11 +30,6 @@ export function createWizard<
    * Is it a Linear flow or does it have branches
    */
   linear: TLinear;
-  /**
-   * If true, the wizard will not store any data in session storage
-   * @default 'session'
-   */
-  storage?: TStorage & StorageType;
 }) {
   // <Generics>
   type AssertZodType<T> = T extends ZodType ? T : never;
@@ -53,6 +47,13 @@ export function createWizard<
   type $DataStep = keyof $Data;
   type $Step = TStepTuple[number] | $EndStep | $DataStep;
   type $EndStepWithData = $EndStep & $DataStep;
+
+  interface $Storage {
+    data: $PartialData;
+    patchData: $PatchDataFunction;
+    onReachEndStep: (step: $EndStepWithData) => void;
+    onLeaveEndStep: (step: $EndStepWithData) => void;
+  }
 
   interface $StoredWizardState {
     history: $Step[];
@@ -89,7 +90,6 @@ export function createWizard<
   // <Variables>
   const _def = {
     ...config,
-    storage: config.storage ?? ("session" as TStorage),
     $types: null as null as unknown as {
       EndStep: $EndStep;
       AnyStep: $Step;
@@ -142,44 +142,44 @@ export function createWizard<
   const sessionKey = (id: string, source: "data" | "history") =>
     `${_def.id}_${id}_${source}`;
 
-  function useStorage(props: { id: string; data?: $PartialData }): {
-    data: $PartialData;
-    patchData: $PatchDataFunction;
-    setData?: React.Dispatch<React.SetStateAction<$PartialData>>;
-  } {
-    // using conditional hooks is okay here because the storage type is static when the wizard is created
-    switch (_def.storage) {
-      case "controlled": {
-        return {
-          data: props.data ?? {},
-          patchData: props.data ? () => {} : () => {},
-        };
-      }
-      case "session": {
-        const [innerData, setData] = useSessionStorage<$PartialData>(
-          sessionKey(props.id, "data"),
-          props.data ?? {},
-        );
+  function useDefaultStorage(props: {
+    id: string;
+    data?: $PartialData;
+  }): Required<$Storage> {
+    const [innerData, setData] = useSessionStorage<$PartialData>(
+      sessionKey(props.id, "data"),
+      props.data ?? {},
+    );
+    const data = useMemo(() => {
+      return patchDataFn(innerData, props.data);
+    }, [innerData, props.data]);
 
-        const data = useMemo(
-          () => patchDataFn(innerData, props.data),
-          [innerData, props.data],
-        );
-        return {
-          data,
-          setData,
-          patchData: useCallback(
-            (newData) => {
-              setData((state) => patchDataFn(state, newData));
-            },
-            [setData],
-          ),
-        };
-      }
-    }
-
-    assertUnreachable(_def.storage);
+    const patchData = React.useCallback(
+      (newData: $PartialData) => {
+        setData((state) => patchDataFn(state, newData));
+      },
+      [setData],
+    );
+    const onReachEndStep = React.useCallback(
+      (step: $EndStepWithData) => {
+        console.log("onReachEndStep", step);
+      },
+      [setData],
+    );
+    const onLeaveEndStep = React.useCallback(
+      (step: $EndStepWithData) => {
+        console.log("onLeaveEndStep", step);
+      },
+      [setData],
+    );
+    return {
+      data,
+      patchData,
+      onReachEndStep,
+      onLeaveEndStep,
+    };
   }
+
   function InnerWizard(props: {
     id: string;
     start: $Step;
@@ -368,7 +368,6 @@ export function createWizard<
       // reset any end step data if we go to any non-end step
       const hasDataForEndSteps = _def.end.some((step) => !!store.data[step]);
       if (!isEndStep(currentStep) && hasDataForEndSteps) {
-        store.setData?.((data) => omit(data, _def.end));
         return;
       }
       // reset data for all steps when reaching an end step
@@ -409,20 +408,17 @@ export function createWizard<
   }
 
   function Wizard<TStart extends $Step>(
-    props: {
-      id: string;
-      start: TStart;
-      steps: Record<$Step, React.ReactNode>;
-    } & (TStart extends $EndStepWithData
-      ? { data: DataRequiredForStep<TStart> }
-      : TStorage extends "controlled"
-      ? {
-          data: $PartialData;
-          patchData: $PatchDataFunction;
-        }
-      : {
-          data?: $PartialData;
-        }),
+    props:
+      | ({
+          id: string;
+          start: TStart;
+          steps: Record<$Step, React.ReactNode>;
+        } & { storage: $Storage })
+      | (TStart extends $EndStepWithData
+          ? { data: DataRequiredForStep<TStart> }
+          : {
+              data?: $PartialData;
+            }),
   ) {
     const router = useRouter();
     const mounted = useMountedOnClient();
