@@ -387,11 +387,13 @@ function createWizard<
     const context = useContext();
     const router = useRouter();
 
-    return {
-      push: context.push,
-      setStepData: context.setStepData,
-    };
-    throw "unimplemented";
+    return React.useMemo(
+      () => ({
+        push: context.push,
+        setStepData: context.setStepData,
+      }),
+      [context.push, context.setStepData],
+    );
   };
 
   // Would be nicer, but reqs refactoring all forms:
