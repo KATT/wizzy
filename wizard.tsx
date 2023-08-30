@@ -183,12 +183,16 @@ function createWizard<
 
     const setState: $SetWizardStateFunction = React.useCallback(
       (state) => {
-        setStateInner((obj) => {
-          const newObj = { ...obj, ...state };
-          for (const key in state.data) {
+        setStateInner((newState) => {
+          const newObj: $StoredWizardState = {
+            ...state,
+            ...newState,
+            data: { ...state.data },
+          };
+          for (const key in newState.data) {
             newObj.data[key] = {
-              ...(state.data[key] as Record<string, unknown>),
-              ...obj.data[key],
+              ...state.data?.[key],
+              ...newState.data[key],
             };
           }
 
