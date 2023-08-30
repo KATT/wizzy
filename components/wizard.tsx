@@ -109,7 +109,7 @@ export function createWizard<
     from: $StoredWizardState,
     patch: Partial<$StoredWizardState>,
   ) {
-    console.log("---------patch", from, patch);
+    console.log(">>>>  patch >>>>>", from, patch);
     const patchLength = Object.keys(patch).length;
     if (
       !patch ||
@@ -137,6 +137,9 @@ export function createWizard<
         ...newData[key],
       };
     }
+    console.log("nextState", nextState);
+
+    console.log("<<<<< patch end <<<<<<<");
     return nextState;
   }
 
@@ -157,13 +160,15 @@ export function createWizard<
       },
     );
 
-    const state = useMemo(
-      () =>
-        patchState(innerState, {
-          data: props.data,
-        }),
-      [innerState, props.data],
-    );
+    const state = useMemo(() => {
+      if (!props.data) {
+        return innerState;
+      }
+      return patchState(innerState, {
+        data: props.data,
+      });
+    }, [innerState, props.data]);
+    console.log("state", { innerState, state });
     // console.log({state})
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
@@ -313,6 +318,7 @@ export function createWizard<
     React.useEffect(() => {
       console.log({ currentStep });
       setStateInner((state) => {
+        console.log("setting history");
         const lastHistory = state.history.at(-1);
         if (lastHistory === currentStep) {
           return state;
@@ -455,7 +461,7 @@ export function createWizard<
         const data: $PartialData = {};
         data[step] = form.getValues();
 
-        console.log("setting draft data because of unmount", {
+        console.log("--------- setting draft data because of unmount", {
           step,
           data,
         });
