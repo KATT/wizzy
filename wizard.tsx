@@ -127,7 +127,7 @@ function createWizard<
   // <Variables>
   const allSteps: $Step[] = [...config.steps, ...config.end];
 
-  const stepQueryKey = `${config.id}_step`;
+  const stepQueryKey = `w_${config.id}`;
 
   const $types = null as unknown as {
     EndStep: $EndStep;
@@ -231,7 +231,17 @@ function createWizard<
       return requestedStep;
     }, []);
 
-    const goBackLink: LinkProps = React.useMemo(() => {
+    const queryForStep = React.useCallback(
+      (step: $Step): typeof router.query => {
+        return {
+          ...omit(router.query, stepQueryKey),
+          ...(step === props.start ? {} : { [stepQueryKey]: step }),
+        };
+      },
+      [router.query],
+    );
+
+    const goBackLink = React.useMemo((): LinkProps => {
       const idx = allSteps.indexOf(currentStep);
       const previousStep: $Step =
         [...wizardState.history]
@@ -239,10 +249,7 @@ function createWizard<
           .find((step) => allSteps.indexOf(step) < idx) ?? props.start;
       return {
         href: {
-          query: {
-            ...router.query,
-            [stepQueryKey]: previousStep,
-          },
+          query: queryForStep(previousStep),
         },
         shallow: true,
         scroll: false,
@@ -269,10 +276,7 @@ function createWizard<
       }
       await router.push(
         {
-          query: {
-            ...router.query,
-            [stepQueryKey]: step,
-          },
+          query: queryForStep(step),
         },
         undefined,
         {
