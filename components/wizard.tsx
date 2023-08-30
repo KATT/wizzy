@@ -467,11 +467,19 @@ export function createWizard<
 
     const data = context.state.data;
     const get = React.useCallback(
-      <TStep extends $DataStep>(
-        step: TStep,
-      ): AssertZodType<TSchemaRecord[TStep]>["_output"] => {
+      <TStep extends $DataStep>(step: TStep): $Data[TStep] => {
         const schema = config.schema[step];
-        return schema!.parse(data[step]);
+        const result = schema!.safeParse(data[step]);
+        if (!result.success) {
+          console.error(
+            "Invalid data for step",
+            step,
+            data[step],
+            result.error,
+          );
+          throw new Error("Invalid data for step");
+        }
+        return data[step] as $Data[TStep];
       },
       [data],
     );
