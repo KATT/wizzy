@@ -173,6 +173,7 @@ function createWizard<
       patchLength === 0 ||
       (patchLength === 1 && patch.data && Object.keys(patch.data).length === 0)
     ) {
+      // no patch of the data, return original state
       return from;
     }
     const nextState: $StoredWizardState = {
