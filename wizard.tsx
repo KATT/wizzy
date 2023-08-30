@@ -277,12 +277,10 @@ function createWizard<
         (step) => !!wizardState.data[step],
       );
       if (!isEndStep(currentStep) && hasDataForEndSteps) {
-        setWizardState({
-          data: config.end.reduce((acc, step) => {
-            acc[step] = undefined;
-            return acc;
-          }, {} as $PartialData),
-        });
+        setWizardStateInner((state) => ({
+          ...state,
+          data: omit(state.data, config.end),
+        }));
         return;
       }
       // reset data for all steps when reaching an end step
@@ -290,12 +288,10 @@ function createWizard<
         (step) => !!wizardState.data[step],
       );
       if (isEndStep(currentStep) && hasDataForSteps) {
-        setWizardState({
-          data: config.steps.reduce((acc, step) => {
-            acc[step] = undefined;
-            return acc;
-          }, {} as $PartialData),
-        });
+        setWizardStateInner((state) => ({
+          ...state,
+          data: omit(state.data, config.steps),
+        }));
       }
     }, [currentStep]);
 
