@@ -283,9 +283,12 @@ function createWizard<
         if (lastHistory === currentStep) {
           return state;
         }
+
+        const history =
+          currentStep === props.start ? [props.start] : state.history;
         return {
           ...state,
-          history: [...state.history, currentStep],
+          history,
         };
       });
     }, [currentStep]);
