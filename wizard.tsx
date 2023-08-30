@@ -311,7 +311,7 @@ function createWizard<
 
       void router.replace(
         {
-          query: omit(router.query, stepQueryKey),
+          query: queryForStep(currentStep),
         },
         undefined,
         {
