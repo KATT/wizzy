@@ -215,6 +215,7 @@ function createWizard<
         undefined,
         {
           shallow: true,
+          scroll: false,
         },
       );
     }, []) as $GoToStepFunction;
@@ -294,14 +295,21 @@ function createWizard<
     }, [currentStep]);
 
     React.useEffect(() => {
+      // ensure the url is always in sync with the current step
       if (requestedStep === currentStep) {
         return;
       }
 
-      // the url is not in sync with the current step, so we need to update it
-      void router.replace({
-        query: omit(router.query, stepQueryKey),
-      });
+      void router.replace(
+        {
+          query: omit(router.query, stepQueryKey),
+        },
+        undefined,
+        {
+          shallow: true,
+          scroll: false,
+        },
+      );
     }, [router.query]);
 
     React.useEffect(() => {
