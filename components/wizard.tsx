@@ -6,7 +6,7 @@ import { useSessionStorage } from "usehooks-ts";
 import { useMemo } from "react";
 import Link, { LinkProps } from "next/link";
 import { useOnMount } from "./useOnMount";
-import { createCtx, stringOrNull, omit } from "./utils";
+import { createCtx, stringOrNull, omit, assertUnreachable } from "./utils";
 import { useMountedOnClient } from "./useMountedOnClient";
 
 type StorageType = "session" | "controlled";
@@ -178,7 +178,7 @@ export function createWizard<
       }
     }
 
-    throw new Error(`Unknown storage type ${_def.storage}`);
+    assertUnreachable(_def.storage);
   }
   function InnerWizard(props: {
     id: string;
