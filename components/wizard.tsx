@@ -2,14 +2,14 @@ import { useRouter } from "next/router";
 import React, { Fragment, ReactNode, useCallback, useRef } from "react";
 import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
-import { useSessionStorage } from "usehooks-ts";
+import { useSessionStore } from "usehooks-ts";
 import { useMemo } from "react";
 import Link, { LinkProps } from "next/link";
 import { useOnMount } from "./useOnMount";
 import { createCtx, stringOrNull, omit, assertUnreachable } from "./utils";
 import { useMountedOnClient } from "./useMountedOnClient";
 
-type StorageType = "session" | "controlled";
+type StoreType = "session" | "controlled";
 export function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
@@ -48,7 +48,7 @@ export function createWizard<
   type $Step = TStepTuple[number] | $EndStep | $DataStep;
   type $EndStepWithData = $EndStep & $DataStep;
 
-  interface $Storage {
+  interface $Store {
     data: $PartialData;
     patchData: $PatchDataFunction;
     onReachEndStep: (step: $EndStepWithData) => void;
@@ -142,11 +142,11 @@ export function createWizard<
   const sessionKey = (id: string, source: "data" | "history") =>
     `${_def.id}_${id}_${source}`;
 
-  function useDefaultStorage(props: {
+  function useDefaultStore(props: {
     id: string;
     data?: $PartialData;
-  }): Required<$Storage> {
-    const [innerData, setData] = useSessionStorage<$PartialData>(
+  }): Required<$Store> {
+    const [innerData, setData] = useSessionStore<$PartialData>(
       sessionKey(props.id, "data"),
       props.data ?? {},
     );
@@ -185,15 +185,15 @@ export function createWizard<
     start: $Step;
     data?: $PartialData;
     steps: Record<$Step, React.ReactNode>;
-    storage?: $Storage;
+    Store?: $Store;
     patchData?: $PatchDataFunction;
   }) {
     // step is controlled by the url
     const router = useRouter();
 
-    const defaultStore = useDefaultStorage(props);
-    const store = props.storage ?? defaultStore;
-    const [history, setHistory] = useSessionStorage<$Step[]>(
+    const defaultStore = useDefaultStore(props);
+    const store = props.Store ?? defaultStore;
+    const [history, setHistory] = useSessionStore<$Step[]>(
       sessionKey(props.id, "history"),
       [],
     );
@@ -415,7 +415,7 @@ export function createWizard<
       start: TStart;
       steps: Record<$Step, React.ReactNode>;
     } & (
-      | { storage: $Storage }
+      | { Store: $Store }
       | (TStart extends $EndStepWithData
           ? { data: DataRequiredForStep<TStart> }
           : {
