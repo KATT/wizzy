@@ -210,9 +210,6 @@ function createWizard<
     );
 
     const state = useMemo(() => {
-      if (!props.data) {
-        return innerState;
-      }
       return patchState(innerState, {
         data: props.data,
       });
