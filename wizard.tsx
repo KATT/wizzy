@@ -187,7 +187,9 @@ function createWizard<
           const newObj: $StoredWizardState = {
             ...state,
             ...newState,
-            data: { ...state.data },
+            data: {
+              ...state.data,
+            },
           };
           for (const key in newState.data) {
             newObj.data[key] = {
