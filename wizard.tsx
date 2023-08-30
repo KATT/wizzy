@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import React, { createContext } from "react";
+import React, { createContext, useRef } from "react";
 import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
 import { useSessionStorage } from "usehooks-ts";
@@ -115,12 +115,20 @@ function createWizard<
     $Data[TStep]
   > &
     Omit<NonNullable<$PartialData>, TStep>;
-  type $GoToStepFunction = <TStep extends $Step>(
-    step: TStep,
-    ...args: TStep extends $EndStepWithData
-      ? [data: DataRequiredForStep<TStep>]
-      : [data?: $PartialData]
-  ) => Promise<void>;
+  interface $GoToStepFunction {
+    (
+      step: $EndStepWithData,
+      data: DataRequiredForStep<$EndStepWithData>,
+    ): Promise<void>;
+    (
+      step: Exclude<$Step, $EndStepWithData>,
+      data?: $PartialData,
+    ): Promise<void>;
+  }
+  interface $GoToStepFunctionUntyped {
+    (step: $Step, data?: $PartialData): Promise<void>;
+  }
+
   //   </Generics:Functions>
   // </Generics>
 
@@ -398,7 +406,9 @@ function createWizard<
   Wizard.displayName = `Wizard(${config.id})`;
   Wizard.$types = $types;
 
-  Wizard.useForm = function useForm<TStep extends $DataStep>(
+  Wizard.useForm = function useForm<
+    TStep extends $DataStep & TStepTuple[number],
+  >(
     step: TStep,
     opts?: {
       defaultValues?: $PartialData[TStep];
@@ -416,30 +426,38 @@ function createWizard<
         ...context.state.data[step],
       },
     });
+    const isSubmitted = useRef(false);
 
-    const setStepData = React.useCallback(() => {
-      const data = {
-        [step as $DataStep]: form.getValues(),
-      } as $PartialData;
-      context.setState({
-        data,
-      });
-    }, []);
     useOnMount(() => {
-      if (!isEndStep(step)) {
-        return;
-      }
-      // set data on unmount
+      // set draft data on unmount
       return () => {
-        setStepData();
+        if (isSubmitted.current) {
+          return;
+        }
+
+        const data: $PartialData = {};
+        data[step] = form.getValues();
+
+        context.setState({ data });
       };
     });
     const handleSubmit = React.useCallback(
       async (values: $Data[TStep]) => {
-        await form.handleSubmit(values);
-        setStepData();
+        isSubmitted.current = true;
+        // go to next step
+        if (config.linear) {
+          const nextStep = config.steps[config.steps.indexOf(step) + 1];
+          if (nextStep) {
+            const data: $PartialData = {};
+            data[step] = values;
+            await context.push(
+              nextStep as Exclude<TStep, $EndStepWithData>,
+              data,
+            );
+          }
+        }
       },
-      [form, setStepData],
+      [form],
     );
 
     return {
