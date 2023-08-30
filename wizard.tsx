@@ -75,6 +75,7 @@ function createWizard<
     Record<TStepTuple[number] | TEndTuple[number], ZodType>
   >,
   TLinear extends boolean,
+  ControlledData extends boolean,
 >(config: {
   id: string;
   /**
@@ -289,10 +290,13 @@ function createWizard<
 
     const goBackLink = React.useMemo((): LinkProps => {
       const idx = allSteps.indexOf(currentStep);
+
       const previousStep: $Step =
-        [...state.history]
-          .reverse()
-          .find((step) => allSteps.indexOf(step) < idx) ?? props.start;
+        (config.linear
+          ? config.steps[idx - 1]
+          : [...state.history]
+              .reverse()
+              .find((step) => allSteps.indexOf(step) < idx)) ?? props.start;
       return {
         href: {
           query: queryForStep(previousStep),
@@ -535,7 +539,8 @@ function createWizard<
   return Wizard;
 }
 
-const Wiz = createWizard({
+/// --------------- test wizard ------------
+const Test = createWizard({
   steps: ["one", "two"],
   end: ["three"],
   id: "testing",
@@ -552,28 +557,28 @@ const Wiz = createWizard({
   linear: true,
 });
 
-Wiz.useForm("one", {
+Test.useForm("one", {
   defaultValues: {
     name: "test",
   },
 });
 
-const context = Wiz.useContext();
+const context = Test.useContext();
 context.push("one");
 context.push("two");
 
 // @ts-expect-error no arg passed
 context.push("three", {});
 
-Wiz.$types.Data.three;
+Test.$types.Data.three;
 
-type $Types = typeof Wiz.$types;
+type $Types = typeof Test.$types;
 
-type EndStepWithData = typeof Wiz.$types.DataStep & typeof Wiz.$types.EndStep;
+type EndStepWithData = typeof Test.$types.DataStep & typeof Test.$types.EndStep;
 
 function MyComponent() {
   return (
-    <Wiz
+    <Test
       id="123"
       start="three"
       data={{
@@ -583,4 +588,29 @@ function MyComponent() {
       }}
     />
   );
+}
+
+// ---------------- onboarding wizard with remote storage -----
+const Onboarding = createWizard({
+  steps: ["one", "two"],
+  end: ["three"],
+  id: "onboarding",
+  schema: {
+    one: z.object({
+      name: z.string(),
+    }),
+    three: z.object({
+      applicationId: z.string(),
+    }),
+  },
+  linear: true,
+});
+
+function OnboardingWizard() {
+  const data = {
+    one: {
+      name: "test",
+    },
+  };
+  return <Onboarding id="123" start="one" data={data} onPatch={() => {}} />;
 }
