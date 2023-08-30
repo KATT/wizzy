@@ -210,11 +210,13 @@ function createWizard<
       },
     );
 
-    const state = useMemo(() => {
-      return patchState(innerState, {
-        data: props.data,
-      });
-    }, [innerState, props.data]);
+    const state = useMemo(
+      () =>
+        patchState(innerState, {
+          data: props.data,
+        }),
+      [innerState, props.data],
+    );
 
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
