@@ -271,7 +271,7 @@ export function createWizard<
       if (isEndStep(step) && data) {
         // validate data
         const schema = config.schema[step];
-        if (!schema || !schema.safeParse(data).success) {
+        if (!schema || !schema.safeParse(data[step]).success) {
           console.error(
             "Invalid data passed to end step - this shouldn't happen",
             data,
