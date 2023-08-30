@@ -427,17 +427,30 @@ export function createWizard<
         ...context.data[step],
       },
     });
-    const isSubmitted = useRef(false);
+    const stateSaved = useRef(false);
+
+    const saveState = React.useCallback(async () => {
+      if (stateSaved.current) {
+        return;
+      }
+      setTimeout(() => {
+        stateSaved.current = false;
+      }, 100);
+      stateSaved.current = true;
+      console.log("saving state", step, form.getValues());
+
+      const data: $PartialData = {};
+      data[step] = form.getValues();
+      context.patchData(data);
+    }, []);
 
     useOnMount(() => {
       console.log("mount");
       // set draft data on unmount
       return () => {
-        console.log("unmount");
-        if (isSubmitted.current) {
-          console.log("skipped");
-          return;
-        }
+        void saveState().catch(() => {
+          // no-op
+        });
 
         const data: $PartialData = {};
         data[step] = form.getValues();
@@ -452,8 +465,11 @@ export function createWizard<
     });
     const handleSubmit = React.useCallback(
       async (values: $Data[TStep]) => {
-        isSubmitted.current = true;
+        void saveState();
         console.log("submitting", values);
+
+        await saveState();
+
         // go to next step
         if (config.linear) {
           const nextStep = config.steps[config.steps.indexOf(step) + 1];
@@ -461,10 +477,7 @@ export function createWizard<
           if (nextStep) {
             const data: $PartialData = {};
             data[step] = values;
-            await context.push(
-              nextStep as Exclude<TStep, $EndStepWithData>,
-              data,
-            );
+            await context.push(nextStep as Exclude<TStep, $EndStepWithData>);
           }
         }
       },
@@ -474,6 +487,10 @@ export function createWizard<
     return {
       form,
       handleSubmit,
+      /**
+       * When handling submit manually, call this function to save the state
+       */
+      saveState,
     };
   };
 
