@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import Link, { LinkProps } from "next/link";
 import { useOnMount } from "./useOnMount";
 import { createCtx, stringOrNull, omit } from "./utils";
+import { useMountedOnClient } from "./useMountedOnClient";
 
 export function createWizard<
   TStepTuple extends string[],
@@ -131,6 +132,8 @@ export function createWizard<
     return nextState;
   }
 
+  const sessionKey = (id: string, source: "data" | "history") =>
+    `${config.id}_${id}_${source}`;
   function InnerWizard(props: {
     id: string;
     start: $Step;
@@ -141,11 +144,11 @@ export function createWizard<
     const router = useRouter();
 
     const [innerData, setDataInner] = useSessionStorage<$PartialData>(
-      config.id + "_" + props.id + "_data",
+      sessionKey(props.id, "data"),
       props.data ?? {},
     );
     const [history, setHistory] = useSessionStorage<$Step[]>(
-      config.id + "_" + props.id + "_history",
+      sessionKey(props.id, "history"),
       [],
     );
 
@@ -387,6 +390,11 @@ export function createWizard<
         }),
   ) {
     const router = useRouter();
+    const mounted = useMountedOnClient();
+    if (!mounted || !router.isReady) {
+      // prevent flashes before the router is ready
+      return null;
+    }
 
     return (
       <InnerWizard
