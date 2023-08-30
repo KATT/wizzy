@@ -14,8 +14,8 @@ const Test = createWizard({
     three: z.object({
       id: z.string(),
     }),
-    // @ts-expect-error TODO: not a valid step
-    moo: z.object({}),
+    // // @ts-expect-error TODO: not a valid step
+    // moo: z.object({}),
   },
   linear: true,
 });
@@ -44,8 +44,44 @@ function Step1() {
 
   return (
     <Form {...form}>
+      <h1>Step 1</h1>
+      <input {...form.form.register("name")} />
+
+      {form.form.formState.errors && (
+        <pre>{JSON.stringify(form.form.formState.errors, null, 4)}</pre>
+      )}
       <SubmitButton>Next</SubmitButton>
     </Form>
+  );
+}
+function Step2() {
+  const wizard = Test.useContext();
+  return (
+    <div>
+      <h1>Step 2</h1>
+      <button
+        onClick={() =>
+          wizard.push("three", {
+            three: {
+              id: "123",
+            },
+          })
+        }
+      >
+        Next
+      </button>
+    </div>
+  );
+}
+function Step3() {
+  const wizard = Test.useContext();
+  const data = wizard.get("three");
+
+  return (
+    <div>
+      <h1>Step 3</h1>
+      <pre>{JSON.stringify(data)}</pre>
+    </div>
   );
 }
 
@@ -56,8 +92,8 @@ export default function Index() {
       start="one"
       steps={{
         one: <Step1 />,
-        two: <div>two</div>,
-        three: <div>three</div>,
+        two: <Step2 />,
+        three: <Step3 />,
       }}
     />
   );

@@ -4,7 +4,7 @@ import z, { AnyZodObject, ZodType } from "zod";
 import { useZodForm } from "./useZodForm";
 import { useSessionStorage } from "usehooks-ts";
 import { useMemo } from "react";
-import { LinkProps } from "next/link";
+import Link, { LinkProps } from "next/link";
 import { useOnMount } from "./useOnMount";
 import { createCtx, stringOrNull, omit } from "./utils";
 
@@ -160,12 +160,12 @@ export function createWizard<
         }),
       [innerState, props.data],
     );
-
+    // console.log({state})
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
      *
      **/
-    const queryStep = stringOrNull(router.query[config.id]);
+    const queryStep = stringOrNull(router.query[stepQueryKey]);
     const requestedStep: $Step | null =
       queryStep && allSteps.includes(queryStep) ? queryStep : null;
 
@@ -185,9 +185,11 @@ export function createWizard<
     let currentStep: $Step = React.useMemo(() => {
       // check if requestedStep is a valid step
       if (!requestedStep || requestedStep === props.start) {
+        console.log("no requested step");
         return props.start;
       }
 
+      console.log("requested step", requestedStep);
       const isEndStep = config.end.includes(requestedStep as any);
 
       if (isEndStep) {
@@ -199,12 +201,13 @@ export function createWizard<
         return requestedStep;
       }
 
-      const currentStepIndex = allSteps.indexOf(currentStep);
+      const requestedIdx = allSteps.indexOf(requestedStep);
+      console.log({ requestedIdx });
       if (
         config.linear &&
         !config.steps.every((step, index) => {
           // check all previous steps' data requirements are fulfilled
-          if (index <= currentStepIndex) {
+          if (index <= requestedIdx) {
             // skip current step and all previous steps
             return true;
           }
@@ -213,12 +216,20 @@ export function createWizard<
           return !schema || schema.safeParse(state.data[step]).success;
         })
       ) {
+        console.log("not fulfilled");
         // if they arent' fulfilled, go to start step
         return props.start;
       }
 
       return requestedStep;
-    }, []);
+    }, [requestedStep, state.data, props.start]);
+    console.log({
+      requestedStep,
+      stepQueryKey,
+      queryStep,
+      currentStep,
+      allSteps,
+    });
 
     const queryForStep = React.useCallback(
       (step: $Step): typeof router.query => {
@@ -230,7 +241,7 @@ export function createWizard<
       [router.query],
     );
 
-    const goBackLink = React.useMemo((): LinkProps => {
+    const goBackLink = React.useMemo((): LinkProps | null => {
       const idx = allSteps.indexOf(currentStep);
 
       const previousStep: $Step =
@@ -239,6 +250,9 @@ export function createWizard<
           : [...state.history]
               .reverse()
               .find((step) => allSteps.indexOf(step) < idx)) ?? props.start;
+      if (previousStep === currentStep) {
+        return null;
+      }
       return {
         href: {
           query: queryForStep(previousStep),
@@ -249,6 +263,7 @@ export function createWizard<
     }, [state.history, currentStep, router.query]);
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
+      console.log("push", step, data);
       if (data) {
         patchData(data);
       }
@@ -264,20 +279,25 @@ export function createWizard<
           throw new Error("Invalid data passed to end step");
         }
       }
-      await router.push(
+      console.log({
+        query: queryForStep(step),
+      });
+      const pushed = await router.push(
         {
           query: queryForStep(step),
         },
         undefined,
         {
-          shallow: true,
+          // shallow: true,
           scroll: false,
         },
       );
+      console.log({ pushed });
     }, []) as $GoToStepFunction;
 
     // update history when navigating
     React.useEffect(() => {
+      console.log({ currentStep });
       setStateInner((state) => {
         const lastHistory = state.history.at(-1);
         if (lastHistory === currentStep) {
@@ -295,7 +315,7 @@ export function createWizard<
 
     React.useEffect(() => {
       // ensure the url is always in sync with the current step
-      if (requestedStep === currentStep) {
+      if (requestedStep === currentStep || !router.isReady) {
         return;
       }
 
@@ -309,7 +329,7 @@ export function createWizard<
           scroll: false,
         },
       );
-    }, [router.query]);
+    }, [currentStep]);
 
     React.useEffect(() => {
       // reset any end step data if we go to any non-end step
@@ -348,6 +368,7 @@ export function createWizard<
           state: state,
         }}
       >
+        {goBackLink && <Link {...goBackLink}>Go back</Link>}
         {Object.entries(props.steps).map(([step, children]) => (
           <Fragment key={step}>
             {currentStep === step ? (children as ReactNode) : null}
@@ -416,9 +437,11 @@ export function createWizard<
     const handleSubmit = React.useCallback(
       async (values: $Data[TStep]) => {
         isSubmitted.current = true;
+        console.log("submitting", values);
         // go to next step
         if (config.linear) {
           const nextStep = config.steps[config.steps.indexOf(step) + 1];
+          console.log("next step", nextStep);
           if (nextStep) {
             const data: $PartialData = {};
             data[step] = values;
@@ -442,37 +465,23 @@ export function createWizard<
     const context = useContext();
     const router = useRouter();
 
+    const data = context.state.data;
+    const get = React.useCallback(
+      <TStep extends $DataStep>(
+        step: TStep,
+      ): AssertZodType<TSchemaRecord[TStep]>["_output"] => {
+        const schema = config.schema[step];
+        return schema!.parse(data[step]);
+      },
+      [data],
+    );
+
     return {
       push: context.push,
       patchData: context.patchData,
+      get,
     };
   };
-
-  // Would be nicer, but reqs refactoring all forms:
-  // Wizard.step = function createStep<TStep extends Step>(step: TStep, Component: Component<{
-  //     data<T extends TStep>() {
-
-  //     },
-  //     form: UseZodForm<>
-  // }>) {
-  //     if (steps[step]) {
-  //         throw new Error(`Duplicate step registered ${step}`)
-  //     }
-
-  //     Component.displayName = `WizardStep_${step}`;
-  //     const isEndingStep = config.end.includes(step);
-
-  //     steps[step] = function Step() {
-  //         const context = useContext();
-
-  //         return (
-  //             <>
-  //                 <Component />
-  //             </>
-  //         )
-  //     }
-  //     steps[step].displayName = `Step(${Component.displayName})`
-  // }
 
   return Wizard;
 }
