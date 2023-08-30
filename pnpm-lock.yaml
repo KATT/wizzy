@@ -32,6 +32,9 @@ dependencies:
   type-fest:
     specifier: ^4.3.1
     version: 4.3.1
+  typescript:
+    specifier: ^5.2.2
+    version: 5.2.2
   usehooks-ts:
     specifier: ^2.9.1
     version: 2.9.1(react-dom@18.2.0)(react@18.2.0)
@@ -444,6 +447,15 @@ packages:
         integrity: sha512-pphNW/msgOUSkJbH58x8sqpq8uQj6b0ZKGxEsLKMUnGorRcDjrUaLS+39+/ub41JNTwrrMyJcUB8+YZs3mbwqw==,
       }
     engines: { node: ">=16" }
+    dev: false
+
+  /typescript@5.2.2:
+    resolution:
+      {
+        integrity: sha512-mI4WrpHsbCIcwT9cF4FZvr80QUeKvsUsUvKDoR+X/7XHQH98xYD8YHZg7ANtz2GtZt/CBq2QJ0thkGJMHfqc1w==,
+      }
+    engines: { node: ">=14.17" }
+    hasBin: true
     dev: false
 
   /usehooks-ts@2.9.1(react-dom@18.2.0)(react@18.2.0):

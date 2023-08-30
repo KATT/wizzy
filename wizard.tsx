@@ -102,6 +102,7 @@ function createWizard<
   type $EndStepWithData = $EndStep & $DataStep;
 
   interface $StoredWizardState {
+    history: $Step[];
     data: $PartialData;
   }
 
@@ -157,6 +158,7 @@ function createWizard<
 
     const [wizardState, setWizardStateInner] =
       useSessionStorage<$StoredWizardState>(config.id + "_" + props.id, {
+        history: [],
         data: props.data ?? {},
       });
 
@@ -259,6 +261,34 @@ function createWizard<
 
       return requestedStep;
     }, []);
+
+    const goBackQuery = React.useMemo(() => {
+      const idx = allSteps.indexOf(currentStep);
+      const previousStep: $Step =
+        [...wizardState.history]
+          .reverse()
+          .findLast((step) => allSteps.indexOf(step) < idx) ?? props.start;
+      return {
+        query: {
+          ...router.query,
+          [stepQueryKey]: previousStep,
+        },
+      };
+    }, [wizardState.history, router.query]);
+
+    // update history when navigate
+    React.useEffect(() => {
+      setWizardStateInner((state) => {
+        const lastHistory = state.history.at(-1);
+        if (lastHistory === currentStep) {
+          return state;
+        }
+        return {
+          ...state,
+          history: [...state.history, currentStep],
+        };
+      });
+    }, [currentStep]);
 
     React.useEffect(() => {
       if (requestedStep === currentStep) {
