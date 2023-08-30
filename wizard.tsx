@@ -276,7 +276,7 @@ function createWizard<
       };
     }, [wizardState.history, currentStep, router.query]);
 
-    // update history when navigate
+    // update history when navigating
     React.useEffect(() => {
       setWizardStateInner((state) => {
         const lastHistory = state.history.at(-1);
