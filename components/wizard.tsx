@@ -185,12 +185,14 @@ export function createWizard<
     start: $Step;
     data?: $PartialData;
     steps: Record<$Step, React.ReactNode>;
+    storage?: $Storage;
     patchData?: $PatchDataFunction;
   }) {
     // step is controlled by the url
     const router = useRouter();
 
-    const store = useStorage(props);
+    const defaultStore = useDefaultStorage(props);
+    const store = props.storage ?? defaultStore;
     const [history, setHistory] = useSessionStorage<$Step[]>(
       sessionKey(props.id, "history"),
       [],
@@ -413,12 +415,12 @@ export function createWizard<
       start: TStart;
       steps: Record<$Step, React.ReactNode>;
     } & (
+      | { storage: $Storage }
       | (TStart extends $EndStepWithData
           ? { data: DataRequiredForStep<TStart> }
           : {
               data?: $PartialData;
             })
-      | { storage: $Storage }
     ),
   ) {
     const router = useRouter();
@@ -428,13 +430,7 @@ export function createWizard<
       return null;
     }
 
-    return (
-      <InnerWizard
-        {...props}
-        data={props.data as $PartialData}
-        key={_def.id + props.id}
-      />
-    );
+    return <InnerWizard {...props} key={_def.id + props.id} />;
   }
 
   Wizard.displayName = `Wizard(${_def.id})`;
