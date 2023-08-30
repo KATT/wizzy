@@ -267,7 +267,7 @@ function createWizard<
       const previousStep: $Step =
         [...wizardState.history]
           .reverse()
-          .findLast((step) => allSteps.indexOf(step) < idx) ?? props.start;
+          .find((step) => allSteps.indexOf(step) < idx) ?? props.start;
       return {
         query: {
           ...router.query,
