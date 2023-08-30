@@ -146,6 +146,7 @@ export function createWizard<
     start: $Step;
     data?: $PartialData;
     steps: Record<$Step, React.ReactNode>;
+    patchData?: $PatchDataFunction;
   }) {
     // step is controlled by the url
     const router = useRouter();
@@ -391,11 +392,13 @@ export function createWizard<
       id: string;
       start: TStart;
       steps: Record<$Step, React.ReactNode>;
-    } & (TStart extends $EndStepWithData
+    } & TStorage extends "controlled"
+      ? {}
+      : TStart extends $EndStepWithData
       ? { data: DataRequiredForStep<TStart> }
       : {
           data?: $PartialData;
-        }),
+        },
   ) {
     const router = useRouter();
     const mounted = useMountedOnClient();
