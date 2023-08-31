@@ -21,6 +21,8 @@ const logger = (wizardId: string, instanceId: string) => {
   };
 };
 
+type Logger = ReturnType<typeof logger>;
+
 export function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
@@ -131,7 +133,7 @@ export function createWizard<
     patchData: $PatchDataFunction;
     history: $Step[];
     push: $GoToStepFunction;
-    log: ReturnType<typeof logger>;
+    log: Logger;
   }>();
 
   function patchDataFn(from: $PartialData, patch: $PartialData | undefined) {
@@ -160,7 +162,7 @@ export function createWizard<
   function useDefaultStorage(props: {
     id: string;
     data?: $PartialData;
-    log: ReturnType<typeof logger>;
+    log: Logger;
   }): Required<$StorageShape> {
     const { log } = props;
     const [innerData, setData] = useSessionStorage<$PartialData>(
@@ -199,6 +201,23 @@ export function createWizard<
     };
   }
 
+  function useStorage(props: {
+    id: string;
+    log: Logger;
+    storage?: $StorageShape;
+    data?: $PartialData;
+  }): $StorageShape {
+    // using a conditional hook is okay here because the storage is set in the factory function
+    switch (_def.storage) {
+      case "sessionStorage":
+        return useDefaultStorage(props);
+      case "custom":
+        return props.storage!;
+    }
+
+    assertUnreachable(_def.storage);
+  }
+
   function InnerWizard(props: {
     id: string;
     start: $Step;
@@ -206,14 +225,13 @@ export function createWizard<
     steps: Record<$Step, React.ReactNode>;
     storage?: $StorageShape;
     patchData?: $PatchDataFunction;
-    log: ReturnType<typeof logger>;
+    log: Logger;
   }) {
     const { log } = props;
     // step is controlled by the url
     const router = useRouter();
 
-    const storage =
-      _def.storage === "custom" ? props.storage! : useDefaultStorage(props);
+    const storage = useStorage(props);
     const [history, setHistory] = useSessionStorage<$Step[]>(
       sessionKey(props.id, "history"),
       [],
@@ -506,6 +524,10 @@ export function createWizard<
     step: TStep,
     opts?: {
       defaultValues?: $PartialData[TStep];
+      /**
+       * Called when the form is submitted
+       */
+      handleSubmit?: (values: $Data[TStep]) => Promise<void>;
     },
   ) {
     const context = useContext();
@@ -556,8 +578,7 @@ export function createWizard<
     });
     const handleSubmit = React.useCallback(
       async (values: $Data[TStep]) => {
-        void saveState();
-        log("submitting", values);
+        log("submitting and saving state", values);
 
         await saveState();
 
@@ -575,19 +596,24 @@ export function createWizard<
       [form],
     );
 
-    return {
+    const returnedForm = form as typeof form & {
+      saveState: typeof saveState;
+      formProps: {
+        form: typeof form;
+        handleSubmit: typeof handleSubmit;
+      };
+    };
+    returnedForm.saveState = saveState;
+    returnedForm.formProps = {
       form,
       handleSubmit,
-      /**
-       * When handling submit manually, call this function to save the state
-       */
-      saveState,
     };
+
+    return returnedForm;
   };
 
   Wizard.useContext = function useWizard() {
     const context = useContext();
-    const router = useRouter();
 
     const data = context.data;
     const get = React.useCallback(

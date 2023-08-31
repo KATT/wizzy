@@ -46,12 +46,12 @@ function Step1() {
   const form = Test.useForm("one");
 
   return (
-    <Form {...form}>
+    <Form {...form.formProps}>
       <h1>Step 1</h1>
-      <input {...form.form.register("name")} />
+      <input {...form.register("name")} />
 
-      {form.form.formState.errors && (
-        <pre>{JSON.stringify(form.form.formState.errors, null, 4)}</pre>
+      {form.formState.errors && (
+        <pre>{JSON.stringify(form.formState.errors, null, 4)}</pre>
       )}
       <SubmitButton>Next</SubmitButton>
     </Form>
@@ -62,7 +62,7 @@ function Step2() {
   const form = Test.useForm("two");
   return (
     <Form
-      {...form}
+      {...form.formProps}
       handleSubmit={async () => {
         await form.saveState();
         wizard.push("three", {
@@ -73,7 +73,7 @@ function Step2() {
       }}
     >
       <h1>Step 2</h1>
-      <input {...form.form.register("message")} />
+      <input {...form.register("message")} />
       <SubmitButton>Next</SubmitButton>
     </Form>
   );
