@@ -528,6 +528,7 @@ export function createWizard<
        * Called when the form is submitted
        */
       handleSubmit?: (values: $Data[TStep]) => Promise<void>;
+      nextStep?: Exclude<$Step, $EndStepWithData>;
     },
   ) {
     const context = useContext();
@@ -544,7 +545,7 @@ export function createWizard<
     });
     const stateSaved = useRef(false);
 
-    const saveState = React.useCallback(async () => {
+    const saveStateDebounced = React.useCallback(async () => {
       if (stateSaved.current) {
         return;
       }
@@ -563,7 +564,7 @@ export function createWizard<
       log("mount");
       // set draft data on unmount
       return () => {
-        void saveState().catch(() => {
+        void saveStateDebounced().catch(() => {
           // no-op
         });
 
@@ -579,31 +580,35 @@ export function createWizard<
     const handleSubmit = React.useCallback(
       async (values: $Data[TStep]) => {
         log("submitting and saving state", values);
+        await saveStateDebounced();
 
-        await saveState();
+        let nextStep = (opts?.nextStep ?? null) as $Step | null;
 
         // go to next step
         if (_def.linear) {
-          const nextStep = _def.steps[_def.steps.indexOf(step) + 1];
-          log("next step", nextStep);
-          if (nextStep) {
-            const data: $PartialData = {};
-            data[step] = values;
-            await context.push(nextStep as Exclude<TStep, $EndStepWithData>);
-          }
+          nextStep = _def.steps[_def.steps.indexOf(step) + 1];
+          log("linear form: next step", nextStep);
         }
+
+        if (!nextStep) {
+          throw new Error(
+            `No next step found for step ${step} - we need a manual handleSubmit function or pass nextStep as a prop`,
+          );
+        }
+
+        await context.push(nextStep as Exclude<TStep, $EndStepWithData>);
       },
       [form],
     );
 
     const returnedForm = form as typeof form & {
-      saveState: typeof saveState;
+      saveState: typeof saveStateDebounced;
       formProps: {
         form: typeof form;
         handleSubmit: typeof handleSubmit;
       };
     };
-    returnedForm.saveState = saveState;
+    returnedForm.saveState = saveStateDebounced;
     returnedForm.formProps = {
       form,
       handleSubmit,
