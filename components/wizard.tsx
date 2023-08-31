@@ -106,7 +106,7 @@ export function createWizard<
     },
     allSteps: [...config.steps, ...config.end] as $Step[],
     stepQueryKey: `w_${config.id}`,
-    storage: config.storage ?? ("sessionStorage" as TStorage),
+    storage: (config.storage ?? "sessionStorage") as TStorage,
   };
   // </Variables>
 
