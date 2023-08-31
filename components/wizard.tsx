@@ -577,26 +577,25 @@ export function createWizard<
         });
       };
     });
+    const nextStep = React.useMemo(() => {
+      let nextStep = (opts?.nextStep ?? null) as $Step | null;
+      if (_def.linear) {
+        nextStep = _def.steps[_def.steps.indexOf(step) + 1];
+      }
+      if (!nextStep) {
+        log(
+          `no next step defined for step ${step} - manual handleSubmit or nextStep prop required`,
+        );
+      }
+      return nextStep;
+    }, [step, opts?.nextStep]);
+
     const handleSubmit = React.useCallback(
       async (values: $Data[TStep]) => {
         log("submitting and saving state", values);
         await saveStateDebounced();
 
-        let nextStep = (opts?.nextStep ?? null) as $Step | null;
-
-        // go to next step
-        if (_def.linear) {
-          nextStep = _def.steps[_def.steps.indexOf(step) + 1];
-          log("linear form: next step", nextStep);
-        }
-
-        if (!nextStep) {
-          throw new Error(
-            `No next step found for step ${step} - we need a manual handleSubmit function or pass nextStep as a prop to useForm`,
-          );
-        }
-
-        await context.push(nextStep as Exclude<TStep, $EndStepWithData>);
+        await context.push(nextStep as Exclude<$Step, $EndStepWithData>);
       },
       [form],
     );
