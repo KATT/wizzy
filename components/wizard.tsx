@@ -390,6 +390,25 @@ export function createWizard<
       }
     }, [currentStep]);
 
+    useOnMount(() => {
+      // reset wizard query params when unmounting
+      return () => {
+        if (!router.query[_def.stepQueryKey]) {
+          return;
+        }
+        void router.replace(
+          {
+            query: queryForStep(props.start),
+          },
+          undefined,
+          {
+            shallow: true,
+            scroll: false,
+          },
+        );
+      };
+    });
+
     const transitionType =
       prevStep.current &&
       _def.allSteps.indexOf(prevStep.current) >
