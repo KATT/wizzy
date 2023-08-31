@@ -11,6 +11,16 @@ import { useMountedOnClient } from "./useMountedOnClient";
 
 type StorageType = "sessionStorage" | "custom";
 
+let logEnabled = false;
+
+const logger = (wizardId: string, instanceId: string) => {
+  return (...args: any[]) => {
+    if (logEnabled) {
+      console.log(`[${wizardId}:${instanceId}]`, ...args);
+    }
+  };
+};
+
 export function createWizard<
   TStepTuple extends string[],
   TEndTuple extends string[],
@@ -52,8 +62,8 @@ export function createWizard<
   type $PartialData = {
     [TStep in keyof TSchemaRecord]?: Partial<$Data[TStep]>;
   };
-  type $DataStep = keyof $Data;
-  type $Step = TStepTuple[number] | $EndStep | $DataStep;
+  type $DataStep = string & keyof $Data;
+  type $Step = string & (TStepTuple[number] | $EndStep | $DataStep);
   type $EndStepWithData = $EndStep & $DataStep;
 
   interface $StorageShape {
@@ -121,12 +131,11 @@ export function createWizard<
     patchData: $PatchDataFunction;
     history: $Step[];
     push: $GoToStepFunction;
+    log: ReturnType<typeof logger>;
   }>();
 
   function patchDataFn(from: $PartialData, patch: $PartialData | undefined) {
-    console.log(">>>>  patch >>>>>", { from, patch });
     if (!patch || !Object.keys(patch).length) {
-      console.log("no patch");
       // no patch of the data, return original state
       return from;
     }
@@ -136,15 +145,12 @@ export function createWizard<
 
     // patch each data entry individually
     for (const key in patch) {
-      console.log("patching", key);
       nextState[key] = {
         ...from[key],
         ...patch[key],
       };
     }
-    console.log("nextState", nextState);
 
-    console.log("<<<<< patch end <<<<<<<");
     return nextState;
   }
 
@@ -154,7 +160,9 @@ export function createWizard<
   function useDefaultStorage(props: {
     id: string;
     data?: $PartialData;
+    log: ReturnType<typeof logger>;
   }): Required<$StorageShape> {
+    const { log } = props;
     const [innerData, setData] = useSessionStorage<$PartialData>(
       sessionKey(props.id, "data"),
       props.data ?? {},
@@ -171,14 +179,14 @@ export function createWizard<
     );
     const onReachEndStep = React.useCallback(
       (step: $EndStepWithData) => {
-        console.log("onReachEndStep", step);
+        log("onReachEndStep - resetting state from other steps", step);
         setData((data) => omit(data, _def.steps));
       },
       [setData],
     );
     const onLeaveEndStep = React.useCallback(
       (step: $EndStepWithData) => {
-        console.log("onLeaveEndStep", step);
+        log("onLeaveEndStep - resetting end steps' state", step);
         setData((data) => omit(data, _def.end));
       },
       [setData],
@@ -198,7 +206,9 @@ export function createWizard<
     steps: Record<$Step, React.ReactNode>;
     storage?: $StorageShape;
     patchData?: $PatchDataFunction;
+    log: ReturnType<typeof logger>;
   }) {
+    const { log } = props;
     // step is controlled by the url
     const router = useRouter();
 
@@ -209,7 +219,7 @@ export function createWizard<
       [],
     );
 
-    // console.log({state})
+    // log({state})
     /**
      * The current step is set by the url but we make sure we cannot navigate to a step if we don't have fulfilled the data requirements for it
      *
@@ -223,11 +233,11 @@ export function createWizard<
     let currentStep: $Step = React.useMemo(() => {
       // check if requestedStep is a valid step
       if (!requestedStep || requestedStep === props.start) {
-        // console.log("no requested step");
+        // log("no requested step");
         return props.start;
       }
 
-      console.log("requested step", requestedStep);
+      log("requested step", requestedStep);
       const isEndStep = _def.end.includes(requestedStep as any);
 
       if (isEndStep) {
@@ -240,7 +250,7 @@ export function createWizard<
       }
 
       const requestedIdx = _def.allSteps.indexOf(requestedStep);
-      console.log({ requestedIdx });
+
       if (
         _def.linear &&
         !_def.steps.every((step, index) => {
@@ -251,17 +261,26 @@ export function createWizard<
           }
 
           const schema = (_def.schema as Record<string, ZodType>)[step];
-          return !schema || schema.safeParse(storage.data[step]).success;
+          if (!schema) {
+            return true;
+          }
+          const ok = schema.safeParse(storage.data[step]).success;
+          if (!ok) {
+            log(
+              `not fulfilled previous step ${step}, returning to strart step "${props.start}"`,
+            );
+            return false;
+          }
+          return true;
         })
       ) {
-        console.log("not fulfilled step 2, going to start step", props.start);
         // if they arent' fulfilled, go to start step
         return props.start;
       }
 
       return requestedStep;
     }, [requestedStep, storage.data, props.start]);
-    console.log({
+    log({
       requestedStep,
       stepQueryKey: _def.stepQueryKey,
       queryStep,
@@ -308,7 +327,7 @@ export function createWizard<
     }, [history, currentStep, router.query, previousStep]);
 
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
-      console.log("push", step, data);
+      log("push", step, data);
       if (data) {
         storage.patchData(data);
       }
@@ -324,7 +343,7 @@ export function createWizard<
           throw new Error("Invalid data passed to end step");
         }
       }
-      console.log({
+      log({
         query: queryForStep(step),
       });
       const pushed = await router.push(
@@ -345,15 +364,23 @@ export function createWizard<
 
     // update history when navigating
     React.useEffect(() => {
-      console.log({ currentStep });
+      log({ currentStep });
       setHistory((state) => {
-        console.log("setting history");
+        log("setting history");
         const lastHistory = state.at(-1);
         if (lastHistory === currentStep) {
           return state;
         }
+        if ((currentStep === props.start) === isEndStep(currentStep)) {
+          log("resetting history", {
+            currentStep,
+            isEndStep: isEndStep(currentStep),
+          });
+          return [];
+        }
 
-        const history = currentStep === props.start ? [props.start] : state;
+        const history =
+          (currentStep === props.start) === isEndStep(currentStep) ? [] : state;
         return history;
       });
     }, [currentStep]);
@@ -363,7 +390,7 @@ export function createWizard<
       if (!requestedStep || requestedStep === currentStep || !router.isReady) {
         return;
       }
-      console.log("updating query params because of requestedStep mismatch", {
+      log("updating query params because of requestedStep mismatch", {
         requestedStep,
         currentStep,
       });
@@ -426,6 +453,7 @@ export function createWizard<
           patchData: storage.patchData,
           data: storage.data,
           history,
+          log,
         }}
       >
         {goBackLink && <Link {...goBackLink}>Go back</Link>}
@@ -457,13 +485,16 @@ export function createWizard<
   ) {
     const router = useRouter();
     const mounted = useMountedOnClient();
+    const log = logger(_def.id, props.id);
+    logEnabled =
+      process.env.NODE_ENV === "development" || "debug" in router.query;
 
     if (!mounted || !router.isReady) {
       // prevent flashes before the router is ready
       return null;
     }
 
-    return <InnerWizard {...props} key={_def.id + props.id} />;
+    return <InnerWizard {...props} log={log} key={_def.id + props.id} />;
   }
 
   Wizard.displayName = `Wizard(${_def.id})`;
@@ -478,9 +509,10 @@ export function createWizard<
     },
   ) {
     const context = useContext();
+    const { log } = context;
 
     const schema = _def.schema[step];
-    console.log("data", context.data);
+    log("data", context.data);
     const form = useZodForm({
       schema: schema!,
       defaultValues: {
@@ -498,7 +530,7 @@ export function createWizard<
         stateSaved.current = false;
       }, 100);
       stateSaved.current = true;
-      console.log("saving state", step, form.getValues());
+      log("saving state", step, form.getValues());
 
       const data: $PartialData = {};
       data[step] = form.getValues();
@@ -506,7 +538,7 @@ export function createWizard<
     }, []);
 
     useOnMount(() => {
-      console.log("mount");
+      log("mount");
       // set draft data on unmount
       return () => {
         void saveState().catch(() => {
@@ -516,7 +548,7 @@ export function createWizard<
         const data: $PartialData = {};
         data[step] = form.getValues();
 
-        console.log("--------- setting draft data because of unmount", {
+        log("--------- setting draft data because of unmount", {
           step,
           data,
         });
@@ -525,14 +557,14 @@ export function createWizard<
     const handleSubmit = React.useCallback(
       async (values: $Data[TStep]) => {
         void saveState();
-        console.log("submitting", values);
+        log("submitting", values);
 
         await saveState();
 
         // go to next step
         if (_def.linear) {
           const nextStep = _def.steps[_def.steps.indexOf(step) + 1];
-          console.log("next step", nextStep);
+          log("next step", nextStep);
           if (nextStep) {
             const data: $PartialData = {};
             data[step] = values;
