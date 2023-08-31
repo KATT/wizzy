@@ -592,7 +592,7 @@ export function createWizard<
 
         if (!nextStep) {
           throw new Error(
-            `No next step found for step ${step} - we need a manual handleSubmit function or pass nextStep as a prop`,
+            `No next step found for step ${step} - we need a manual handleSubmit function or pass nextStep as a prop to useForm`,
           );
         }
 
