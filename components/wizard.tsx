@@ -1,6 +1,6 @@
 import { useRouter } from "next/router";
 import React, { Fragment, ReactNode, useCallback, useRef } from "react";
-import z, { AnyZodObject, ZodType } from "zod";
+import z, { AnyZodObject, ZodObject, ZodType, ZodUnknown } from "zod";
 import { useZodForm } from "./useZodForm";
 import { useSessionStorage } from "usehooks-ts";
 import { useMemo } from "react";
@@ -518,9 +518,7 @@ export function createWizard<
   Wizard.displayName = `Wizard(${_def.id})`;
   Wizard.$types = _def.$types;
 
-  Wizard.useForm = function useForm<
-    TStep extends $DataStep & TStepTuple[number],
-  >(
+  Wizard.useForm = function useForm<TStep extends TStepTuple[number]>(
     step: TStep,
     opts?: {
       defaultValues?: $PartialData[TStep];
@@ -535,13 +533,16 @@ export function createWizard<
     const { log } = context;
 
     const schema = _def.schema[step];
+    type $Schema = TStep extends $DataStep
+      ? AssertZodType<TSchemaRecord[TStep]>
+      : ZodType<{}>;
     log("data", context.data);
-    const form = useZodForm({
-      schema: schema!,
+    const form = useZodForm<$Schema>({
+      schema: (schema ?? z.unknown().optional()) as $Schema,
       defaultValues: {
         ...opts?.defaultValues,
         ...context.data[step],
-      },
+      } as any,
     });
     const stateSaved = useRef(false);
 
@@ -591,7 +592,7 @@ export function createWizard<
     }, [step, opts?.nextStep]);
 
     const handleSubmit = React.useCallback(
-      async (values: $Data[TStep]) => {
+      async (values: $Schema["_input"]) => {
         log("submitting and saving state", values);
         await saveStateDebounced();
 

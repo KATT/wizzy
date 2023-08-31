@@ -4,8 +4,8 @@ import { Form, SubmitButton } from "../components/useZodForm";
 
 /// --------------- test wizard ------------
 const Test = createWizard({
-  steps: ["one", "two"],
-  end: ["three"],
+  steps: ["one", "two", "three"],
+  end: ["success"],
   id: "testing",
   schema: {
     one: z.object({
@@ -14,7 +14,8 @@ const Test = createWizard({
     two: z.object({
       message: z.string(),
     }),
-    three: z.object({
+
+    success: z.object({
       id: z.string(),
     }),
     // // @ts-expect-error TODO: not a valid step
@@ -28,13 +29,13 @@ type $Types = typeof Test.$types;
 // ---------------- onboarding wizard with remote storage -----
 // const Onboarding = createWizard({
 //   steps: ["one", "two"],
-//   end: ["three"],
+//   end: ["success"],
 //   id: "onboarding",
 //   schema: {
 //     one: z.object({
 //       name: z.string(),
 //     }),
-//     three: z.object({
+//     success: z.object({
 //       applicationId: z.string(),
 //     }),
 //   },
@@ -65,8 +66,8 @@ function Step2() {
       {...form.formProps}
       handleSubmit={async () => {
         await form.saveState();
-        wizard.push("three", {
-          three: {
+        wizard.push("success", {
+          success: {
             id: "123",
           },
         });
@@ -80,7 +81,27 @@ function Step2() {
 }
 function Step3() {
   const wizard = Test.useContext();
-  const data = wizard.get("three");
+  const form = Test.useForm("three");
+  return (
+    <Form
+      {...form.formProps}
+      handleSubmit={async () => {
+        await form.saveState();
+        wizard.push("success", {
+          success: {
+            id: "123",
+          },
+        });
+      }}
+    >
+      <h1>Step 2</h1>
+      <SubmitButton>Next</SubmitButton>
+    </Form>
+  );
+}
+function Success() {
+  const wizard = Test.useContext();
+  const data = wizard.get("success");
 
   return (
     <div>
@@ -99,6 +120,7 @@ function TestWizard() {
         one: <Step1 />,
         two: <Step2 />,
         three: <Step3 />,
+        success: <Success />,
       }}
     />
   );
@@ -106,7 +128,7 @@ function TestWizard() {
 
 const Onboarding = createWizard({
   steps: ["one", "two"],
-  end: ["three"],
+  end: ["success"],
   id: "onboarding",
   schema: {
     one: z.object({
@@ -125,7 +147,7 @@ function OnboardingStep2() {
   return <>Step 2</>;
 }
 
-function OnboardingStep3() {
+function OnboardingSuccess() {
   return <>Step 3</>;
 }
 
@@ -133,11 +155,11 @@ function OnboardingWizard() {
   return (
     <Onboarding
       id="123"
-      start="three"
+      start="success"
       steps={{
         one: <OnboardingStep1 />,
         two: <OnboardingStep2 />,
-        three: <OnboardingStep3 />,
+        success: <OnboardingSuccess />,
       }}
       storage={{
         patchData(data) {
