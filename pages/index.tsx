@@ -114,6 +114,7 @@ const Onboarding = createWizard({
     }),
   },
   linear: true,
+  storage: "custom",
 });
 
 function OnboardingStep1() {
@@ -138,7 +139,7 @@ function OnboardingWizard() {
         two: <OnboardingStep2 />,
         three: <OnboardingStep3 />,
       }}
-      store={{
+      storage={{
         patchData(data) {
           data?.one;
           console.log("patchData", data);

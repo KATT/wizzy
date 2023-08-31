@@ -18,7 +18,7 @@ export function createWizard<
     Record<TStepTuple[number] | TEndTuple[number], ZodType>
   >,
   TLinear extends boolean,
-  TStorage extends StorageType = "sessionStorage",
+  TStorage extends StorageType,
 >(config: {
   id: string;
   /**
@@ -33,9 +33,11 @@ export function createWizard<
    */
   linear: TLinear;
   /**
+   * Where the draft state of the wizard is stored
+   * If you define your own storage, you need to provide the storage object in the Wizard props
    * @default 'sessionStorage'
    */
-  store?: TStorage;
+  storage?: TStorage;
 }) {
   // <Generics>
   type AssertZodType<T> = T extends ZodType ? T : never;
@@ -54,21 +56,21 @@ export function createWizard<
   type $Step = TStepTuple[number] | $EndStep | $DataStep;
   type $EndStepWithData = $EndStep & $DataStep;
 
-  interface $Store {
+  interface $StorageShape {
     data: $PartialData;
     patchData: $PatchDataFunction;
     onReachEndStep?: (step: $EndStepWithData) => void;
     onLeaveEndStep?: (step: $EndStepWithData) => void;
   }
 
-  interface $StoredWizardState {
+  interface $StoragedWizardState {
     history: $Step[];
     data: $PartialData;
   }
 
   //   <Generics:Functions>
   type $PatchDataFunction = (
-    newData: Partial<$StoredWizardState["data"]>,
+    newData: Partial<$StoragedWizardState["data"]>,
   ) => void | Promise<void>;
 
   type DataRequiredForStep<TStep extends $DataStep> = Record<
@@ -104,7 +106,7 @@ export function createWizard<
     },
     allSteps: [...config.steps, ...config.end] as $Step[],
     stepQueryKey: `w_${config.id}`,
-    store: config.store ?? ("sessionStorage" as TStorage),
+    storage: config.storage ?? ("sessionStorage" as TStorage),
   };
   // </Variables>
 
@@ -149,10 +151,10 @@ export function createWizard<
   const sessionKey = (id: string, source: "data" | "history") =>
     `${_def.id}_${id}_${source}`;
 
-  function useDefaultStore(props: {
+  function useDefaultStorage(props: {
     id: string;
     data?: $PartialData;
-  }): Required<$Store> {
+  }): Required<$StorageShape> {
     const [innerData, setData] = useSessionStorage<$PartialData>(
       sessionKey(props.id, "data"),
       props.data ?? {},
@@ -194,14 +196,14 @@ export function createWizard<
     start: $Step;
     data?: $PartialData;
     steps: Record<$Step, React.ReactNode>;
-    store?: $Store;
+    storage?: $StorageShape;
     patchData?: $PatchDataFunction;
   }) {
     // step is controlled by the url
     const router = useRouter();
 
-    const store =
-      _def.store === "custom" ? props.store! : useDefaultStore(props);
+    const storage =
+      _def.storage === "custom" ? props.storage! : useDefaultStorage(props);
     const [history, setHistory] = useSessionStorage<$Step[]>(
       sessionKey(props.id, "history"),
       [],
@@ -231,7 +233,7 @@ export function createWizard<
       if (isEndStep) {
         // for end steps we validate the data
         const schema = _def.schema[requestedStep];
-        if (schema && !schema.safeParse(store.data[requestedStep]).success) {
+        if (schema && !schema.safeParse(storage.data[requestedStep]).success) {
           return prevStep.current ?? props.start;
         }
         return requestedStep;
@@ -249,7 +251,7 @@ export function createWizard<
           }
 
           const schema = (_def.schema as Record<string, ZodType>)[step];
-          return !schema || schema.safeParse(store.data[step]).success;
+          return !schema || schema.safeParse(storage.data[step]).success;
         })
       ) {
         console.log("not fulfilled step 2, going to start step", props.start);
@@ -258,7 +260,7 @@ export function createWizard<
       }
 
       return requestedStep;
-    }, [requestedStep, store.data, props.start]);
+    }, [requestedStep, storage.data, props.start]);
     console.log({
       requestedStep,
       stepQueryKey: _def.stepQueryKey,
@@ -308,7 +310,7 @@ export function createWizard<
     const push = React.useCallback(async (step: $Step, data: $PartialData) => {
       console.log("push", step, data);
       if (data) {
-        store.patchData(data);
+        storage.patchData(data);
       }
 
       if (isEndStep(step) && data) {
@@ -377,13 +379,13 @@ export function createWizard<
 
     React.useEffect(() => {
       if (prevStep.current && isEndStep(currentStep)) {
-        store.onReachEndStep?.(currentStep);
+        storage.onReachEndStep?.(currentStep);
       } else if (
         prevStep.current &&
         isEndStep(prevStep.current) &&
         !isEndStep(currentStep)
       ) {
-        store.onLeaveEndStep?.(prevStep.current);
+        storage.onLeaveEndStep?.(prevStep.current);
       }
     }, [currentStep]);
 
@@ -401,8 +403,8 @@ export function createWizard<
           push,
           start: props.start,
           currentStep,
-          patchData: store.patchData,
-          data: store.data,
+          patchData: storage.patchData,
+          data: storage.data,
           history,
         }}
       >
@@ -423,10 +425,7 @@ export function createWizard<
       steps: Record<$Step, React.ReactNode>;
     } & (TStorage extends "custom"
       ? {
-          /**
-           * Use a custom store instead of the default one which uses session storage
-           */
-          store: $Store;
+          storage: $StorageShape;
         }
       : TStart extends $EndStepWithData
       ? {
