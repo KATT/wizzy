@@ -9,8 +9,7 @@ import { useOnMount } from "./useOnMount";
 import { createCtx, stringOrNull, omit, assertUnreachable } from "./utils";
 import { useMountedOnClient } from "./useMountedOnClient";
 
-const defaultStores = ["sessionStorage"] as const;
-type DefaultStore = (typeof defaultStores)[number];
+type StorageType = "sessionStorage" | "custom";
 
 export function createWizard<
   TStepTuple extends string[],
@@ -19,6 +18,7 @@ export function createWizard<
     Record<TStepTuple[number] | TEndTuple[number], ZodType>
   >,
   TLinear extends boolean,
+  TStorage extends StorageType = "sessionStorage",
 >(config: {
   id: string;
   /**
@@ -32,6 +32,10 @@ export function createWizard<
    * Is it a Linear flow or does it have branches
    */
   linear: TLinear;
+  /**
+   * @default 'sessionStorage'
+   */
+  store?: TStorage;
 }) {
   // <Generics>
   type AssertZodType<T> = T extends ZodType ? T : never;
@@ -100,6 +104,7 @@ export function createWizard<
     },
     allSteps: [...config.steps, ...config.end] as $Step[],
     stepQueryKey: `w_${config.id}`,
+    store: config.store ?? ("sessionStorage" as TStorage),
   };
   // </Variables>
 
@@ -189,17 +194,14 @@ export function createWizard<
     start: $Step;
     data?: $PartialData;
     steps: Record<$Step, React.ReactNode>;
-    store?: $Store | DefaultStore;
+    store?: $Store;
     patchData?: $PatchDataFunction;
   }) {
     // step is controlled by the url
     const router = useRouter();
 
-    const defaultStore = useDefaultStore(props);
-    const store: $Store =
-      props.store && typeof props.store !== "string"
-        ? props.store
-        : defaultStore;
+    const store =
+      _def.store === "custom" ? props.store! : useDefaultStore(props);
     const [history, setHistory] = useSessionStorage<$Step[]>(
       sessionKey(props.id, "history"),
       [],
@@ -419,26 +421,24 @@ export function createWizard<
       id: string;
       start: TStart;
       steps: Record<$Step, React.ReactNode>;
-    } & (
-      | {
+    } & (TStorage extends "custom"
+      ? {
           /**
            * Use a custom store instead of the default one which uses session storage
            */
           store: $Store;
         }
-      | (TStart extends $EndStepWithData
-          ? {
-              store?: DefaultStore;
-              data: DataRequiredForStep<TStart>;
-            }
-          : {
-              store?: DefaultStore;
-              data?: $PartialData;
-            })
-    ),
+      : TStart extends $EndStepWithData
+      ? {
+          data: DataRequiredForStep<TStart>;
+        }
+      : {
+          data?: $PartialData;
+        }),
   ) {
     const router = useRouter();
     const mounted = useMountedOnClient();
+
     if (!mounted || !router.isReady) {
       // prevent flashes before the router is ready
       return null;
