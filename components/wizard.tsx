@@ -337,7 +337,10 @@ export function createWizard<
           scroll: false,
         },
       );
-      console.log({ pushed });
+
+      if (isEndStep(step)) {
+        storage.onReachEndStep?.(step);
+      }
     }, []) as $GoToStepFunction;
 
     // update history when navigating
@@ -378,9 +381,7 @@ export function createWizard<
     }, [currentStep, router.isReady, requestedStep]);
 
     React.useEffect(() => {
-      if (prevStep.current && isEndStep(currentStep)) {
-        storage.onReachEndStep?.(currentStep);
-      } else if (
+      if (
         prevStep.current &&
         isEndStep(prevStep.current) &&
         !isEndStep(currentStep)
