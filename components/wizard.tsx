@@ -377,6 +377,7 @@ export function createWizard<
 
       if (isEndStep(step)) {
         storage.onReachEndStep?.(step);
+        setHistory(() => [])
       }
     }, []) as $GoToStepFunction;
 
