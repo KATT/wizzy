@@ -141,15 +141,14 @@ function OnboardingStep1() {
 }
 
 function OnboardingStep2() {
-  const form = Onboarding.useForm("two");
+  const form = Onboarding.useForm("two", {
+    handleSubmit() {
+      context.push("success");
+    },
+  });
   const context = Onboarding.useContext();
   return (
-    <Form
-      {...form.formProps}
-      handleSubmit={(val) => {
-        context.push("success");
-      }}
-    >
+    <Form {...form.formProps}>
       <h1>Step 2</h1>
 
       <SubmitButton>Next</SubmitButton>

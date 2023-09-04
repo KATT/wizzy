@@ -532,7 +532,7 @@ export function createWizard<
       /**
        * Called when the form is submitted
        */
-      handleSubmit?: (values: $Data[TStep]) => Promise<void>;
+      handleSubmit?: (values: $Data[TStep]) => Promise<void> | void;
       nextStep?: Exclude<$Step, $EndStepWithData>;
     },
   ) {
