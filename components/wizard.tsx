@@ -60,9 +60,9 @@ export function createWizard<
       TSchemaRecord[TStep]
     >["_input"];
   };
-  type $PartialData = {
+  type $PartialData = Partial<{
     [TStep in keyof TSchemaRecord]?: Partial<$Data[TStep]>;
-  };
+  }>;
   type $DataStep = string & keyof $Data;
   type $Step = string & (TStepTuple[number] | $EndStep | $DataStep);
   type $EndStepWithData = $EndStep & $DataStep;
@@ -80,9 +80,7 @@ export function createWizard<
   }
 
   //   <Generics:Functions>
-  type $PatchDataFunction = (
-    newData: Partial<$StoragedWizardState["data"]>,
-  ) => void | Promise<void>;
+  type $PatchDataFunction = (newData: $PartialData) => void | Promise<void>;
 
   type DataRequiredForStep<TStep extends $DataStep> = Record<
     TStep,
