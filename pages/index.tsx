@@ -130,11 +130,31 @@ const Onboarding = createWizard({
 });
 
 function OnboardingStep1() {
-  return <>Step 1</>;
+  const form = Onboarding.useForm("one");
+  return (
+    <Form {...form.formProps}>
+      <h1>Step 1</h1>
+      <input {...form.register("name")} />
+      <SubmitButton>Next</SubmitButton>
+    </Form>
+  );
 }
 
 function OnboardingStep2() {
-  return <>Step 2</>;
+  const form = Onboarding.useForm("two");
+  const context = Onboarding.useContext();
+  return (
+    <Form
+      {...form.formProps}
+      handleSubmit={(val) => {
+        context.push("success");
+      }}
+    >
+      <h1>Step 2</h1>
+
+      <SubmitButton>Next</SubmitButton>
+    </Form>
+  );
 }
 
 function OnboardingSuccess() {
@@ -142,6 +162,7 @@ function OnboardingSuccess() {
 }
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
+import { useState } from "react";
 
 const DialogContent = (props: { children: React.ReactNode; name: string }) => (
   <Dialog.Root>
@@ -167,21 +188,30 @@ const DialogContent = (props: { children: React.ReactNode; name: string }) => (
 );
 
 function OnboardingWizard() {
+  const [state, setState] = useState<
+    (typeof Onboarding)["$types"]["PartialData"]
+  >({});
   return (
     <Onboarding
       id="123"
-      start="success"
+      start="one"
       steps={{
         one: <OnboardingStep1 />,
         two: <OnboardingStep2 />,
         success: <OnboardingSuccess />,
       }}
       storage={{
-        patchData(data) {
+        async patchData(data) {
           data?.one;
           console.log("patchData", data);
+          // wait 1s
+          await new Promise((resolve) => setTimeout(resolve, 1_000));
+          setState((state) => ({
+            ...state,
+            ...data,
+          }));
         },
-        data: {},
+        data: state,
       }}
     />
   );

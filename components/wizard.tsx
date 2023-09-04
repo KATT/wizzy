@@ -114,6 +114,7 @@ export function createWizard<
       AnyStep: $Step;
       Data: $Data;
       DataStep: $DataStep;
+      PartialData: $PartialData;
     },
     allSteps: [...config.steps, ...config.end] as $Step[],
     stepQueryKey: `w_${config.id}`,
@@ -566,7 +567,7 @@ export function createWizard<
       const data: $PartialData = {};
       data[step] = values;
       await context.patchData(data);
-    }, [form, context]);
+    }, [form, context, context.data[step]]);
 
     useOnUnmount(() => {
       // on unmount
