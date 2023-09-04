@@ -268,6 +268,9 @@ export function createWizard<
       }
 
       const requestedIdx = _def.allSteps.indexOf(requestedStep);
+      if (requestedIdx === -1) {
+        return props.start;
+      }
 
       if (
         _def.linear &&
@@ -324,9 +327,7 @@ export function createWizard<
 
       const prev = _def.linear
         ? _def.steps[idx - 1]
-        : [...history]
-            .reverse()
-            .find((step) => _def.allSteps.indexOf(step) < idx);
+        : history.findLast((step) => _def.allSteps.indexOf(step) < idx);
 
       return prev ?? null;
     }, [history, currentStep]);
@@ -377,7 +378,7 @@ export function createWizard<
 
       if (isEndStep(step)) {
         storage.onReachEndStep?.(step);
-        setHistory(() => [])
+        setHistory(() => []);
       }
     }, []) as $GoToStepFunction;
 
