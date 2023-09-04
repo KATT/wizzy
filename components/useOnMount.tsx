@@ -7,3 +7,7 @@ export function useOnMount(_callback: () => void | (() => void)) {
 
   useEffect(() => callback.current(), []);
 }
+
+export function useOnUnmount(_callback: () => void) {
+  useOnMount(() => _callback);
+}

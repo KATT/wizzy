@@ -140,6 +140,31 @@ function OnboardingStep2() {
 function OnboardingSuccess() {
   return <>Step 3</>;
 }
+import * as Dialog from "@radix-ui/react-dialog";
+import { Cross2Icon } from "@radix-ui/react-icons";
+
+const DialogContent = (props: { children: React.ReactNode; name: string }) => (
+  <Dialog.Root>
+    <Dialog.Trigger asChild>
+      <button className="Button violet">{props.name}</button>
+    </Dialog.Trigger>
+    <Dialog.Portal>
+      <Dialog.Overlay className="DialogOverlay" />
+      <Dialog.Content className="DialogContent">
+        {/* <Dialog.Title className="DialogTitle">Edit profile</Dialog.Title>
+        <Dialog.Description className="DialogDescription">
+          Make changes to your profile here. Click save when you're done.
+        </Dialog.Description> */}
+        {props.children}
+        <Dialog.Close asChild>
+          <button className="IconButton" aria-label="Close">
+            <Cross2Icon />
+          </button>
+        </Dialog.Close>
+      </Dialog.Content>
+    </Dialog.Portal>
+  </Dialog.Root>
+);
 
 function OnboardingWizard() {
   return (
@@ -165,10 +190,14 @@ function OnboardingWizard() {
 export default function Page() {
   return (
     <>
-      <h1>Test wizard</h1>
-      <TestWizard />
-      <h1>Onboarding wizard</h1>
-      <OnboardingWizard />
+      <DialogContent name="TestWizard">
+        <h1>Test wizard</h1>
+        <TestWizard />
+      </DialogContent>
+      <DialogContent name="OnboardingWizard">
+        <h1>Onboarding wizard</h1>
+        <OnboardingWizard />
+      </DialogContent>
     </>
   );
 }

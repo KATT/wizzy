@@ -4,7 +4,7 @@ import React, { Fragment, ReactNode, useMemo } from "react";
 import { useSessionStorage } from "usehooks-ts";
 import z, { ZodType } from "zod";
 import { useMountedOnClient } from "./useMountedOnClient";
-import { useOnMount } from "./useOnMount";
+import { useOnUnmount } from "./useOnMount";
 import { useZodForm } from "./useZodForm";
 import { assertUnreachable, createCtx, omit, stringOrNull } from "./utils";
 
@@ -168,9 +168,10 @@ export function createWizard<
       sessionKey(props.id, "data"),
       props.data ?? {},
     );
-    const data: $PartialData = useMemo(() => {
-      return patchDataFn(innerData, props.data);
-    }, [innerData, props.data]);
+    const data: $PartialData = useMemo(
+      () => patchDataFn(innerData, props.data),
+      [innerData, props.data],
+    );
 
     const patchData = React.useCallback(
       (newData: $PartialData) => {
@@ -436,23 +437,27 @@ export function createWizard<
       }
     }, [currentStep]);
 
-    useOnMount(() => {
+    const routerQuery = React.useRef(router.query);
+    routerQuery.current = router.query;
+
+    useOnUnmount(() => {
       // reset wizard query params when unmounting
-      return () => {
-        if (!router.query[_def.stepQueryKey]) {
-          return;
-        }
-        void router.replace(
-          {
-            query: queryForStep(props.start),
-          },
-          undefined,
-          {
-            shallow: true,
-            scroll: false,
-          },
-        );
-      };
+
+      log("Unmounting wizard");
+      if (!routerQuery.current[_def.stepQueryKey]) {
+        return;
+      }
+      log("Resetting query params because of unmount");
+      void router.replace(
+        {
+          query: omit(routerQuery.current, _def.stepQueryKey),
+        },
+        undefined,
+        {
+          shallow: true,
+          scroll: false,
+        },
+      );
     });
 
     const transitionType =
@@ -563,24 +568,21 @@ export function createWizard<
       await context.patchData(data);
     }, [form, context]);
 
-    useOnMount(() => {
-      log("mount");
-      return () => {
-        // on unmount
-        // set draft data on unmount
-        void saveStateDeduped().catch(() => {
-          // reset save state since it failed
-          lastStateSaved.current = "";
-        });
+    useOnUnmount(() => {
+      // on unmount
+      // set draft data on unmount
+      void saveStateDeduped().catch(() => {
+        // reset save state since it failed
+        lastStateSaved.current = "";
+      });
 
-        const data: $PartialData = {};
-        data[step] = form.getValues();
+      const data: $PartialData = {};
+      data[step] = form.getValues();
 
-        log("--------- setting draft data because of unmount", {
-          step,
-          data,
-        });
-      };
+      log("--------- setting draft data because of unmount", {
+        step,
+        data,
+      });
     });
     const nextStep = React.useMemo(() => {
       let nextStep = (opts?.nextStep ?? null) as $Step | null;
