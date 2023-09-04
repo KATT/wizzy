@@ -186,10 +186,8 @@ const DialogContent = (props: { children: React.ReactNode; name: string }) => (
   </Dialog.Root>
 );
 
+let onboardingState: (typeof Onboarding)["$types"]["PartialData"] = {};
 function OnboardingWizard() {
-  const [state, setState] = useState<
-    (typeof Onboarding)["$types"]["PartialData"]
-  >({});
   return (
     <Onboarding
       id="123"
@@ -205,12 +203,12 @@ function OnboardingWizard() {
           console.log("patchData", data);
           // wait 1s
           await new Promise((resolve) => setTimeout(resolve, 1_000));
-          setState((state) => ({
-            ...state,
+          onboardingState = {
+            ...onboardingState,
             ...data,
-          }));
+          };
         },
-        data: state,
+        data: onboardingState,
       }}
     />
   );
