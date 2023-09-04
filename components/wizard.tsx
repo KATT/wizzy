@@ -356,13 +356,13 @@ export function createWizard<
       log({
         query: queryForStep(step),
       });
-      const pushed = await router.push(
+      await router.push(
         {
           query: queryForStep(step),
         },
         undefined,
         {
-          // shallow: true,
+          shallow: true,
           scroll: false,
         },
       );
