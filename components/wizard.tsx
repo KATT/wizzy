@@ -328,7 +328,10 @@ export function createWizard<
 
       const prev = _def.linear
         ? _def.steps[idx - 1]
-        : history.findLast((step) => _def.allSteps.indexOf(step) < idx);
+        : history.findLast((step) => {
+            const stepIdx = _def.allSteps.indexOf(step);
+            return stepIdx < idx && stepIdx !== -1;
+          });
 
       return prev ?? null;
     }, [history, currentStep]);
