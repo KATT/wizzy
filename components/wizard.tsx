@@ -67,7 +67,7 @@ export function createWizard<
   type $Step = string & (TStepTuple[number] | $EndStep | $DataStep);
   type $EndStepWithData = $EndStep & $DataStep;
 
-  interface $StorageShape {
+  interface $Storage {
     data: $PartialData;
     patchData: $PatchDataFunction;
     onReachEndStep?: (step: $EndStepWithData) => void;
@@ -161,7 +161,7 @@ export function createWizard<
     id: string;
     data?: $PartialData;
     log: Logger;
-  }): Required<$StorageShape> {
+  }): Required<$Storage> {
     const { log } = props;
     const [innerData, setData] = useSessionStorage<$PartialData>(
       sessionKey(props.id, "data"),
@@ -203,9 +203,9 @@ export function createWizard<
   function useStorage(props: {
     id: string;
     log: Logger;
-    storage?: $StorageShape;
+    storage?: $Storage;
     data?: $PartialData;
-  }): $StorageShape {
+  }): $Storage {
     // using a conditional hook is okay here because the storage is set in the factory function
     switch (_def.storage) {
       case "sessionStorage":
@@ -222,7 +222,7 @@ export function createWizard<
     start: $Step;
     data?: $PartialData;
     steps: Record<$Step, React.ReactNode>;
-    storage?: $StorageShape;
+    storage?: $Storage;
     patchData?: $PatchDataFunction;
     log: Logger;
   }) {
@@ -496,7 +496,7 @@ export function createWizard<
       steps: Record<$Step, React.ReactNode>;
     } & (TStorage extends "custom"
       ? {
-          storage: $StorageShape;
+          storage: $Storage;
         }
       : TStart extends $EndStepWithData
       ? {
