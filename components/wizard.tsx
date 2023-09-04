@@ -92,9 +92,6 @@ export function createWizard<
       data?: $PartialData,
     ): Promise<void>;
   }
-  interface $GoToStepFunctionUntyped {
-    (step: $Step, data?: $PartialData): Promise<void>;
-  }
 
   //   </Generics:Functions>
   // </Generics>
