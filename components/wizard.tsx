@@ -74,11 +74,6 @@ export function createWizard<
     onLeaveEndStep?: (step: $EndStepWithData) => void;
   }
 
-  interface $StoragedWizardState {
-    history: $Step[];
-    data: $PartialData;
-  }
-
   //   <Generics:Functions>
   type $PatchDataFunction = (newData: $PartialData) => void | Promise<void>;
 
