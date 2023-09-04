@@ -147,7 +147,7 @@ export function createWizard<
   }
 
   const sessionKey = (id: string, source: "data" | "history") =>
-    `${_def.id}_${id}_${source}`;
+    `w_${_def.id}_${id}_${source}`;
 
   function useDefaultStorage(props: {
     id: string;
