@@ -359,10 +359,7 @@ export function createWizard<
         // validate data
         const schema = _def.schema[step];
         if (!schema || !schema.safeParse(data[step]).success) {
-          console.error(
-            "Invalid data passed to end step - this shouldn't happen",
-            data,
-          );
+          log("Invalid data passed to end step - this shouldn't happen", data);
           throw new Error("Invalid data passed to end step");
         }
       }
@@ -629,18 +626,15 @@ export function createWizard<
   Wizard.useContext = function useWizard() {
     const context = useContext();
 
+    const { log } = context;
+
     const data = context.data;
     const get = React.useCallback(
       <TStep extends $DataStep>(step: TStep): $Data[TStep] => {
         const schema = _def.schema[step];
         const result = schema!.safeParse(data[step]);
         if (!result.success) {
-          console.error(
-            "Invalid data for step",
-            step,
-            data[step],
-            result.error,
-          );
+          log("Invalid data for step", step, data[step], result.error);
           throw new Error("Invalid data for step");
         }
         return data[step] as $Data[TStep];
