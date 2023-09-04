@@ -506,7 +506,7 @@ export function createWizard<
   ) {
     const router = useRouter();
     const mounted = useMountedOnClient();
-    const log = logger(_def.id, props.id);
+    const log = useMemo(() => logger(_def.id, props.id), [props.id]);
     logEnabled =
       process.env.NODE_ENV === "development" || "debug" in router.query;
 
