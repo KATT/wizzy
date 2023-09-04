@@ -1,4 +1,5 @@
 import { useRouter } from "next/router";
+import {} from "next/router";
 import React, { Fragment, ReactNode, useCallback, useRef } from "react";
 import z, { AnyZodObject, ZodObject, ZodType, ZodUnknown } from "zod";
 import { useZodForm } from "./useZodForm";
@@ -546,29 +547,32 @@ export function createWizard<
         ...context.data[step],
       } as any,
     });
-    const stateSaved = useRef(false);
+    const lastStateSaved = React.useRef("");
 
-    const saveStateDebounced = React.useCallback(async () => {
-      if (stateSaved.current) {
+    const saveStateDeduped = React.useCallback(async () => {
+      const values = form.getValues();
+      const state = JSON.stringify(values);
+      if (lastStateSaved.current === state) {
+        log("skipping saving state twice");
+        // avoid storing same state twice
         return;
       }
-      setTimeout(() => {
-        stateSaved.current = false;
-      }, 100);
-      stateSaved.current = true;
-      log("saving state", step, form.getValues());
+      lastStateSaved.current = state;
+      log("saving state", step, values);
 
       const data: $PartialData = {};
-      data[step] = form.getValues();
+      data[step] = values;
       await context.patchData(data);
-    }, []);
+    }, [form, context]);
 
     useOnMount(() => {
       log("mount");
-      // set draft data on unmount
       return () => {
-        void saveStateDebounced().catch(() => {
-          // no-op
+        // on unmount
+        // set draft data on unmount
+        void saveStateDeduped().catch(() => {
+          // reset save state since it failed
+          lastStateSaved.current = "";
         });
 
         const data: $PartialData = {};
@@ -596,7 +600,7 @@ export function createWizard<
     const handleSubmit = React.useCallback(
       async (values: $Schema["_input"]) => {
         log("submitting and saving state", values);
-        await saveStateDebounced();
+        await saveStateDeduped();
 
         await context.push(nextStep as Exclude<$Step, $EndStepWithData>);
       },
@@ -604,13 +608,13 @@ export function createWizard<
     );
 
     const returnedForm = form as typeof form & {
-      saveState: typeof saveStateDebounced;
+      saveState: typeof saveStateDeduped;
       formProps: {
         form: typeof form;
         handleSubmit: typeof handleSubmit;
       };
     };
-    returnedForm.saveState = saveStateDebounced;
+    returnedForm.saveState = saveStateDeduped;
     returnedForm.formProps = {
       form,
       handleSubmit,
