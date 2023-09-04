@@ -326,7 +326,7 @@ export function createWizard<
       return prev ?? null;
     }, [history, currentStep]);
 
-    const goBackLink = React.useMemo((): LinkProps | null => {
+    const goBackLink = React.useMemo(() => {
       if (!previousStep) {
         return null;
       }
@@ -334,8 +334,8 @@ export function createWizard<
         href: {
           query: queryForStep(previousStep),
         },
-        shallow: true,
-        scroll: false,
+        shallow: true as const,
+        scroll: false as const,
       };
     }, [history, currentStep, router.query, previousStep]);
 
