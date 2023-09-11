@@ -28,22 +28,7 @@ const Test = createWizard({
 
 type $Types = typeof Test.$types;
 
-// ---------------- onboarding wizard with remote storage -----
-// const Onboarding = createWizard({
-//   steps: ["one", "two"],
-//   end: ["success"],
-//   id: "onboarding",
-//   schema: {
-//     one: z.object({
-//       name: z.string(),
-//     }),
-//     success: z.object({
-//       applicationId: z.string(),
-//     }),
-//   },
-//   linear: true,
-//   controlled: true,
-// });
+
 
 function Step1() {
   const form = Test.useForm("one");
@@ -117,7 +102,7 @@ function TestWizard() {
     />
   );
 }
-
+// ---------------- onboarding wizard with remote storage -----
 const Onboarding = createWizard({
   steps: ["one", "two"],
   end: ["success"],
