@@ -1,6 +1,8 @@
+import * as Dialog from "@radix-ui/react-dialog";
+import { Cross2Icon } from "@radix-ui/react-icons";
 import { z } from "zod";
-import { createWizard } from "../components/wizard";
 import { Form, SubmitButton } from "../components/useZodForm";
+import { createWizard } from "../components/wizard";
 
 /// --------------- test wizard ------------
 const Test = createWizard({
@@ -143,6 +145,7 @@ function OnboardingStep1() {
 function OnboardingStep2() {
   const form = Onboarding.useForm("two", {
     handleSubmit() {
+      debugger
       context.push("success");
     },
   });
@@ -159,9 +162,6 @@ function OnboardingStep2() {
 function OnboardingSuccess() {
   return <>Step 3</>;
 }
-import * as Dialog from "@radix-ui/react-dialog";
-import { Cross2Icon } from "@radix-ui/react-icons";
-import { useState } from "react";
 
 const DialogContent = (props: { children: React.ReactNode; name: string }) => (
   <Dialog.Root>

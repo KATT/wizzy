@@ -588,7 +588,7 @@ export function createWizard<
       return nextStep;
     }, [step, opts?.nextStep]);
 
-    const handleSubmit = React.useCallback(
+    const defaultHandleSubmit = React.useCallback(
       async (values: $Schema["_input"]) => {
         log("submitting and saving state", values);
         await saveStateDeduped();
@@ -598,11 +598,13 @@ export function createWizard<
       [form],
     );
 
+    const handleSubmit = (opts?.handleSubmit as typeof defaultHandleSubmit) ?? defaultHandleSubmit;
+
     const returnedForm = form as typeof form & {
       saveState: typeof saveStateDeduped;
       formProps: {
         form: typeof form;
-        handleSubmit: typeof handleSubmit;
+        handleSubmit: typeof defaultHandleSubmit;
       };
     };
     returnedForm.saveState = saveStateDeduped;
