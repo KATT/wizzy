@@ -598,7 +598,8 @@ export function createWizard<
       [form],
     );
 
-    const handleSubmit = (opts?.handleSubmit as typeof defaultHandleSubmit) ?? defaultHandleSubmit;
+    const handleSubmit =
+      (opts?.handleSubmit as typeof defaultHandleSubmit) ?? defaultHandleSubmit;
 
     const returnedForm = form as typeof form & {
       saveState: typeof saveStateDeduped;

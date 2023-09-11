@@ -3,6 +3,9 @@ import { Cross2Icon } from "@radix-ui/react-icons";
 import { z } from "zod";
 import { Form, SubmitButton } from "../components/useZodForm";
 import { createWizard } from "../components/wizard";
+import { useRouter } from "next/router";
+import { omit } from "../components/utils";
+import Link from "next/link";
 
 /// --------------- test wizard ------------
 const Test = createWizard({
@@ -27,8 +30,6 @@ const Test = createWizard({
 });
 
 type $Types = typeof Test.$types;
-
-
 
 function Step1() {
   const form = Test.useForm("one");
@@ -130,7 +131,7 @@ function OnboardingStep1() {
 function OnboardingStep2() {
   const form = Onboarding.useForm("two", {
     handleSubmit() {
-      debugger
+      debugger;
       context.push("success");
     },
   });
@@ -148,28 +149,50 @@ function OnboardingSuccess() {
   return <>Step 3</>;
 }
 
-const DialogContent = (props: { children: React.ReactNode; name: string }) => (
-  <Dialog.Root>
-    <Dialog.Trigger asChild>
-      <button className="Button violet">{props.name}</button>
-    </Dialog.Trigger>
-    <Dialog.Portal>
-      <Dialog.Overlay className="DialogOverlay" />
-      <Dialog.Content className="DialogContent">
-        {/* <Dialog.Title className="DialogTitle">Edit profile</Dialog.Title>
-        <Dialog.Description className="DialogDescription">
-          Make changes to your profile here. Click save when you're done.
-        </Dialog.Description> */}
-        {props.children}
-        <Dialog.Close asChild>
-          <button className="IconButton" aria-label="Close">
-            <Cross2Icon />
-          </button>
-        </Dialog.Close>
-      </Dialog.Content>
-    </Dialog.Portal>
-  </Dialog.Root>
-);
+const DialogContent = (props: { children: React.ReactNode; name: string }) => {
+  const router = useRouter();
+
+  return (
+    <Dialog.Root
+      open={router.query[props.name] === "1"}
+      onOpenChange={(open) => {
+        if (!open) {
+          router.replace(router.pathname, {
+            query: omit(router.query, [props.name]),
+          });
+        }
+      }}
+    >
+      <Link
+        href={{
+          query: {
+            ...router.query,
+            [props.name]: "1",
+          },
+        }}
+        className="Button violet"
+      >
+        {props.name}
+      </Link>
+
+      <Dialog.Portal>
+        <Dialog.Overlay className="DialogOverlay" />
+        <Dialog.Content className="DialogContent">
+          {/* <Dialog.Title className="DialogTitle">Edit profile</Dialog.Title>
+            <Dialog.Description className="DialogDescription">
+              Make changes to your profile here. Click save when you're done.
+            </Dialog.Description> */}
+          {props.children}
+          <Dialog.Close asChild>
+            <button className="IconButton" aria-label="Close">
+              <Cross2Icon />
+            </button>
+          </Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+};
 
 let onboardingState: (typeof Onboarding)["$types"]["PartialData"] = {};
 function OnboardingWizard() {
